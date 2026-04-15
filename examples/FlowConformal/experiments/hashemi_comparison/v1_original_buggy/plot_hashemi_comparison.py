@@ -22,7 +22,7 @@ from matplotlib.patches import Rectangle, Polygon as MplPolygon
 from matplotlib.collections import PatchCollection
 
 project_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '..', '..', '..', '..')
+    os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..')
 )
 sys.path.insert(0, project_root)
 sys.path.insert(0, os.path.join(project_root, 'examples'))
@@ -191,7 +191,7 @@ def plot_hero_banana(df):
     config and rebuild the three sets.
     """
     from FlowConformal.networks import RotatedBananaNet
-    from FlowConformal.experiments.hashemi_comparison.exp_hashemi_comparison import (
+    from FlowConformal.experiments.hashemi_comparison.v1_original_buggy.exp_hashemi_comparison import (
         compute_exact_reach, star_polygon_2d, sample_l_inf_ball,
         CenteredFlowScore, BANANA_SPEC, N_TRAIN, N_CALIB,
         FLOW_HIDDEN, FLOW_N_LAYERS, FLOW_EPOCHS, FLOW_BATCH_SIZE,

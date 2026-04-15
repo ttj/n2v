@@ -35,7 +35,7 @@ import pandas as pd
 import torch
 
 project_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), '..', '..', '..', '..')
+    os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..')
 )
 sys.path.insert(0, project_root)
 sys.path.insert(0, os.path.join(project_root, 'examples'))
@@ -324,12 +324,25 @@ def run_flow_pipeline(
     torch.manual_seed(seed)
     vf = VelocityField(dim=output_dim, hidden=FLOW_HIDDEN, n_layers=FLOW_N_LAYERS)
     flow_ode = FlowODE(vf)
+    # --- ARCHIVAL PIN ---
+    # These sinkhorn_reg and sinkhorn_iters values pin the pre-2026-04-14
+    # buggy Sinkhorn behavior for reproducibility of the v1 results. The
+    # library default is now 'auto' / adaptive; we explicitly override to
+    # 0.05 here to exactly reproduce the bugged run that's in this
+    # directory's CSV and figures. Do NOT remove these pins -- this script
+    # exists to recreate the bugged baseline exactly.
+    # See docs/audits/2026-04-13-hashemi-clipping-block-audit.md for the
+    # audit of the underlying bug, and v1_original_buggy/README.md for
+    # the archival rationale.
+    # --- END ARCHIVAL PIN ---
     train_flow(
         vf, y_train_c,
         n_epochs=FLOW_EPOCHS,
         batch_size=FLOW_BATCH_SIZE,
         lr=FLOW_LR,
         coupling=FLOW_COUPLING,
+        sinkhorn_reg=0.05,           # pin pre-2026-04-14 buggy behavior for archival reproducibility
+        sinkhorn_iters=50,           # pin pre-2026-04-14 buggy behavior for archival reproducibility
     )
 
     flow_score_raw = FlowScore(flow_ode, t=1.0)

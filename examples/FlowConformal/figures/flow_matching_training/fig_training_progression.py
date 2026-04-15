@@ -153,7 +153,7 @@ def train_with_checkpoints(vf, training_outputs, n_epochs, checkpoint_epochs,
     for epoch in range(1, n_epochs + 1):
         for (x1_batch,) in loader:
             x0_batch = torch.randn_like(x1_batch)
-            x0_batch, x1_batch = sinkhorn_coupling(x0_batch, x1_batch)
+            x0_batch, x1_batch = sinkhorn_coupling(x0_batch, x1_batch, reg=0.05)
             t = torch.rand(x1_batch.shape[0], device=x1_batch.device)
             x_t = (1 - t.unsqueeze(1)) * x0_batch + t.unsqueeze(1) * x1_batch
             target_v = x1_batch - x0_batch

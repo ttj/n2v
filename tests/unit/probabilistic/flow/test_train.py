@@ -40,7 +40,7 @@ class TestSinkhornCoupling:
 
         x0 = torch.randn(16, 2)
         x1 = torch.randn(16, 2)
-        x0_c, x1_c = sinkhorn_coupling(x0, x1)
+        x0_c, x1_c = sinkhorn_coupling(x0, x1, reg=0.05)
         assert x0_c.shape == (16, 2)
         assert x1_c.shape == (16, 2)
 
@@ -50,7 +50,7 @@ class TestSinkhornCoupling:
 
         x0 = torch.tensor([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])
         x1 = torch.tensor([[10.0, 0.0], [0.0, 10.0], [10.0, 10.0]])
-        x0_c, x1_c = sinkhorn_coupling(x0, x1)
+        x0_c, x1_c = sinkhorn_coupling(x0, x1, reg=0.05)
 
         x0_sorted = x0[x0[:, 0].sort().indices]
         x0c_sorted = x0_c[x0_c[:, 0].sort().indices]
@@ -65,7 +65,7 @@ class TestSinkhornCoupling:
 
         x0 = torch.randn(16, 2, device='cuda')
         x1 = torch.randn(16, 2, device='cuda')
-        x0_c, x1_c = sinkhorn_coupling(x0, x1)
+        x0_c, x1_c = sinkhorn_coupling(x0, x1, reg=0.05)
         assert x0_c.device.type == 'cuda'
         assert x1_c.device.type == 'cuda'
 
@@ -77,9 +77,20 @@ class TestSinkhornCoupling:
         x1 = torch.tensor([[0.1, 0.1], [10.1, 0.1], [0.1, 10.1]])
 
         _, x1_h = ot_coupling(x0, x1)
-        _, x1_s = sinkhorn_coupling(x0, x1)
+        _, x1_s = sinkhorn_coupling(x0, x1, reg=0.05)
 
         torch.testing.assert_close(x1_h, x1_s)
+
+
+def test_sinkhorn_coupling_requires_explicit_reg():
+    """sinkhorn_coupling must not have a default reg parameter."""
+    import torch
+    from n2v.probabilistic.flow.train import sinkhorn_coupling
+    x0 = torch.randn(16, 2)
+    x1 = torch.randn(16, 2)
+    # Should raise TypeError because reg has no default
+    with pytest.raises(TypeError, match="missing.*required.*argument.*reg"):
+        sinkhorn_coupling(x0, x1)
 
 
 class TestTrainFlow:
@@ -149,3 +160,129 @@ class TestTrainFlow:
         data = torch.randn(64, 2)
         with pytest.raises(ValueError, match="coupling"):
             train_flow(vf, data, n_epochs=1, coupling='invalid')
+
+
+def test_train_flow_accepts_sinkhorn_iters():
+    """train_flow should accept sinkhorn_iters as a keyword argument."""
+    import torch
+    from n2v.probabilistic.flow import VelocityField, train_flow
+    torch.manual_seed(0)
+    vf = VelocityField(dim=2, hidden=16, n_layers=2)
+    data = torch.randn(64, 2)
+    # This should not raise — passes explicit sinkhorn_iters
+    train_flow(
+        vf, data,
+        n_epochs=2, batch_size=32, lr=1e-3,
+        coupling='sinkhorn',
+        sinkhorn_iters=5,
+    )
+
+
+def test_train_flow_accepts_sinkhorn_reg():
+    """train_flow should accept sinkhorn_reg as a keyword argument."""
+    import torch
+    from n2v.probabilistic.flow import VelocityField, train_flow
+    torch.manual_seed(0)
+    vf = VelocityField(dim=2, hidden=16, n_layers=2)
+    data = torch.randn(64, 2)
+    # Passing a custom numeric reg should not raise
+    train_flow(
+        vf, data,
+        n_epochs=2, batch_size=32, lr=1e-3,
+        coupling='sinkhorn',
+        sinkhorn_reg=0.1,
+    )
+
+
+def test_adaptive_sinkhorn_reg_has_floor():
+    """Adaptive reg should never return less than 1e-6 even on degenerate data."""
+    import torch
+    from n2v.probabilistic.flow.train import compute_adaptive_sinkhorn_reg
+    # Edge case: all-zero data. The probe noise is nonzero so distances
+    # are still nonzero, but we still want a floor in case something odd happens.
+    data = torch.zeros(10, 2)
+    reg = compute_adaptive_sinkhorn_reg(data, alpha=0.1)
+    assert reg >= 1e-6
+
+
+def test_adaptive_sinkhorn_reg_stable_at_classifier_scale():
+    """Adaptive reg should keep cost/reg in a numerically stable range
+    for classifier-scale data (median squared distance ~9)."""
+    import torch
+    from n2v.probabilistic.flow.train import compute_adaptive_sinkhorn_reg
+    torch.manual_seed(0)
+    # Simulate classifier-r=1 output distribution scale
+    data = torch.randn(1000, 3) * 1.8  # std per dim ~ 1.8
+    reg = compute_adaptive_sinkhorn_reg(data, alpha=0.1)
+    # Compute median cost/reg with fresh noise
+    noise = torch.randn_like(data)
+    cost_sq = (torch.cdist(noise, data, p=2) ** 2).median().item()
+    ratio = cost_sq / reg
+    # cost/reg should be < 30 so that exp(-cost/reg) > exp(-30) ≈ 1e-13
+    assert ratio < 30, (
+        f"cost/reg={ratio:.1f} too large, K entries will underflow"
+    )
+
+
+def test_train_flow_default_sinkhorn_reg_is_auto():
+    """When sinkhorn_reg is not specified, train_flow should use adaptive reg."""
+    import inspect
+    from n2v.probabilistic.flow import train_flow
+    sig = inspect.signature(train_flow)
+    assert sig.parameters['sinkhorn_reg'].default == 'auto', (
+        "Expected default sinkhorn_reg to be 'auto', got "
+        f"{sig.parameters['sinkhorn_reg'].default}"
+    )
+
+
+def test_train_flow_auto_computes_adaptive_reg(monkeypatch):
+    """train_flow with sinkhorn_reg='auto' should call compute_adaptive_sinkhorn_reg."""
+    import torch
+    from n2v.probabilistic.flow import VelocityField, train_flow
+    import n2v.probabilistic.flow.train as train_mod
+
+    calls = []
+    original = train_mod.compute_adaptive_sinkhorn_reg
+
+    def spy(training_outputs, **kwargs):
+        value = original(training_outputs, **kwargs)
+        calls.append(value)
+        return value
+
+    monkeypatch.setattr(train_mod, 'compute_adaptive_sinkhorn_reg', spy)
+
+    torch.manual_seed(0)
+    vf = VelocityField(dim=2, hidden=16, n_layers=2)
+    data = torch.randn(64, 2) * 2.0
+    train_flow(
+        vf, data,
+        n_epochs=1, batch_size=32, lr=1e-3,
+        coupling='sinkhorn',
+        sinkhorn_reg='auto',
+    )
+    assert len(calls) == 1, "compute_adaptive_sinkhorn_reg should be called once"
+    assert calls[0] > 0
+    assert calls[0] != 0.05, "adaptive reg should differ from the old hardcoded 0.05"
+
+
+def test_adaptive_sinkhorn_reg_stable_at_banana_scale():
+    """Adaptive reg should keep cost/reg in a numerically stable range
+    for small-scale data (banana r=0.05-like, std ~0.03 per dim)."""
+    import torch
+    from n2v.probabilistic.flow.train import compute_adaptive_sinkhorn_reg
+    torch.manual_seed(0)
+    # Simulate banana r=0.05 output distribution scale
+    data = torch.randn(1000, 2) * 0.03
+    reg = compute_adaptive_sinkhorn_reg(data, alpha=0.1)
+    # Compute median cost/reg with fresh noise (matching what Sinkhorn actually sees)
+    noise = torch.randn_like(data)
+    cost_sq = (torch.cdist(noise, data, p=2) ** 2).median().item()
+    ratio = cost_sq / reg
+    # cost/reg should be < 30 so that exp(-cost/reg) > exp(-30) ≈ 1e-13
+    assert ratio < 30, (
+        f"cost/reg={ratio:.1f} too large, K entries will underflow"
+    )
+    # Also verify it's not absurdly small (which would mean blurry OT)
+    assert ratio > 0.01, (
+        f"cost/reg={ratio:.4f} too small, Sinkhorn coupling will be essentially uniform"
+    )
