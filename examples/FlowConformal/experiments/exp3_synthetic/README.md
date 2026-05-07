@@ -21,14 +21,24 @@ See `docs/plans/2026-04-27-paper-experiments-design.md` (Experiment 3).
 
 ## Files
 
-- `networks.py` — `OneLipschitzNet`, plus `make_synthetic_5d/10d/20d`.
+- `networks.py` — `OneLipschitzNet`, plus
+  `make_synthetic_2d/3d/5d/10d/20d`.
 - `exact_volumes.py` — `exact_volume_linear_net` (closed form for the
-  identity-activation case) and `mc_ground_truth_volume` (fallback for
-  nonlinear activations).
-- `exp3_run_3d_banana.py` — runs AMLS pipeline on the 3D banana
-  benchmark across `K` seeds.
-- `exp3_run_synthetic.py` — runs AMLS pipeline on the 5D/10D/20D nets
-  across `K` seeds.
+  identity-activation case), cached MC reach-set values for the bananas
+  (`exact_volume_three_blob_3d`, `exact_volume_two_banana`), and
+  `mc_ground_truth_volume` (fallback for nonlinear activations).
+- `_benchmarks.py` — benchmark registry + per-benchmark hparam
+  overrides (`PER_BENCHMARK_CONFIG`).
+- `_score_pipeline.py` — score-family dispatcher used by the ours
+  runner (flow / hyperrect / ellipsoid / gmm).
+- `exp3_run_ours.py` — flow-conformal pipeline. Takes
+  `--benchmark {2d_banana, 3d_banana, synth_2d, synth_3d, synth_5d,
+  synth_10d, synth_20d}` × `--score {flow, hyperrect, ellipsoid, gmm}`
+  × `--spec {unsat, sat}`.
+- `exp3_run_hashemi_clipping.py` — Hashemi-clipping pbox volume
+  baseline. Same `--benchmark` / `--spec` axes.
+- `exp3_run_starset_approx.py` — sound deterministic baseline using
+  `n2v.nn.reach.reach_pytorch_model(method='approx')`.
 - `outputs/` — CSVs are written here at runtime.
 
 ## Locked Phase 5d config
@@ -46,54 +56,31 @@ See `docs/plans/2026-04-27-paper-experiments-design.md` (Experiment 3).
 
 ## How to run
 
-Smoke (≤ 60s per script; reduces n_train, flow_epochs, scenario_n,
-1 seed only):
+Smoke (1 seed, reduced training):
 
 ```bash
 cd /home/sasakis/v/tools/n2v
 /home/sasakis/miniconda3/envs/n2v/bin/python -u -m \
-    examples.FlowConformal.experiments.exp3_synthetic.exp3_run_3d_banana --smoke
-
-/home/sasakis/miniconda3/envs/n2v/bin/python -u -m \
-    examples.FlowConformal.experiments.exp3_synthetic.exp3_run_synthetic --smoke
+    examples.FlowConformal.experiments.exp3_synthetic.exp3_run_ours \
+    --benchmark 3d_banana --score flow --spec unsat --smoke
 ```
 
-Full (5 seeds; outputs go to `outputs/exp3_*.csv`):
+Full sweep across all benchmarks × the three sample-budget configs:
 
 ```bash
-/home/sasakis/miniconda3/envs/n2v/bin/python -u -m \
-    examples.FlowConformal.experiments.exp3_synthetic.exp3_run_3d_banana
-
-/home/sasakis/miniconda3/envs/n2v/bin/python -u -m \
-    examples.FlowConformal.experiments.exp3_synthetic.exp3_run_synthetic
+bash examples/FlowConformal/experiments/run_paper_sweeps.sh --phase exp3
 ```
 
 ## Output schema
 
-`outputs/exp3_3d_banana_ours.csv`:
+See [`../../CSV_SCHEMAS.md` §3](../../CSV_SCHEMAS.md#3-experiment-3--synthetic-volume-comparison)
+for the exact column layout per runner. Filenames follow:
 
-| col | meaning |
-|---|---|
-| seed | calibration seed |
-| verdict | UNSAT / UNKNOWN / SAT |
-| q | calibrated conformal threshold |
-| volume_estimate | MC volume of `{y : score(y) <= q}` |
-| volume_ratio_vs_exact | volume_estimate / `(1-α)·Star_union_vol` |
-| coverage_empirical | empirical (1-α)-coverage on a 2k test set |
-| train_s, verify_s, total_s | wall-clock breakdown |
+- `exp3_<benchmark>_<score>_<spec>_ours[_<config>].csv`
+- `exp3_<benchmark>_<spec>_hashemi_clipping[_<config>].csv`
+- `exp3_<benchmark>_<spec>_starset_approx.csv`
 
-`outputs/exp3_synthetic_ours.csv` adds a `dim` column; the rest is the
-same. The exact-volume reference is `(1-α)·|det(W_total)|·prod(ub-lb)`
-(closed form, identity-activation linear net).
-
-## Expected wall-clock per benchmark
-
-- 3D banana: training ~120s + verify ~30s + Star-union MC ~30s ≈ 3 min/seed.
-- 5D synthetic: ~2 min/seed; 10D ~3 min/seed; 20D ~5 min/seed.
-- Full sweep: 5 seeds × (3 min for 3D + 2+3+5 min for 5/10/20D) ≈
-  ~65 min total sequentially.
-
-## Reference
-
-Design: `docs/plans/2026-04-27-paper-experiments-design.md` §
-"Experiment 3: Synthetic Validation".
+The exact-volume reference for synth_<N>d is
+`|det(W_total)|·prod(ub-lb)` (closed form, identity-activation linear
+net). The bananas use cached MC values
+(`exact_volume_three_blob_3d`, `exact_volume_two_banana`).

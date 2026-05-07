@@ -1,1 +1,0 @@
-benchmark,instance,method,hp_name,m,n_train,flow_epochs,scenario_n_samples,verdict,wall_s,vnncomp_timeout_s,coverage_empirical,coverage_n_test,q,epsilon_total,delta_total,error,timestamp

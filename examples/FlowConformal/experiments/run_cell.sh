@@ -25,10 +25,10 @@
 #   bash run_cell.sh exp1_vnncomp_subset.exp1_run_ours --benchmark acasxu_2023
 #   bash run_cell.sh exp4_scaling.exp4_run_ours --depth 24
 #
-# The instance-level shell timeout is preferred over the cell-level one
-# in run_all_sweeps.sh for production sweeps. For one-off / smoke runs
-# where you want fast feedback and don't worry about hangs, calling the
-# runner directly (without this wrapper) is fine.
+# The instance-level shell timeout is the production pattern used by
+# run_paper_sweeps.sh for Exp 1 / Exp 2 / Exp 4. For one-off / smoke
+# runs where you want fast feedback and don't worry about hangs,
+# calling the runner directly (without this wrapper) is fine.
 set -u
 
 PY=${PY:-/home/sasakis/miniconda3/envs/n2v/bin/python}

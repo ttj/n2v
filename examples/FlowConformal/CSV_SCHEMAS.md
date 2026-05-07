@@ -146,12 +146,6 @@ from the §6 raw VNN-COMP CSVs.
 | `dissenting_tools` | str | comma-separated; only populated when GT=`sat` |
 | `source_tools` | str | comma-separated tools that returned a definitive verdict |
 
-### 1.7 `exp1_aggregate.py` outputs
-
-`exp1_aggregate.py` emits a printed markdown summary; it does not
-produce its own canonical CSV. Use the per-method CSVs directly when
-joining for figures / tables.
-
 ---
 
 ## 2. Experiment 2 — Probabilistic-scale comparison
@@ -295,17 +289,6 @@ Reports the bbox volume of the over-approximate output Star.
 | `volume_ratio` | `starset_bbox_vol / volume_exact` |
 | `cex_x`, `cex_y` | "" |
 
-### 3.4 Legacy / archived runners
-
-These exist on disk but are **not on any current sweep path**:
-
-- `exp3_run_3d_banana.py`, `exp3_run_3d_banana_sat.py` — superseded by
-  `exp3_run_ours.py --benchmark 3d_banana`.
-- `exp3_run_synthetic.py`, `exp3_run_synthetic_sat.py` — superseded by
-  `exp3_run_ours.py --benchmark synth_<N>d`.
-- `exp3_run_geo_transforms.py` — geometric-transform suite from the
-  original Exp 3 README, deferred from the paper.
-
 ---
 
 ## 4. Experiment 4 — Scaling vs. network size
@@ -353,13 +336,11 @@ in §1.2).
 
 ---
 
-## 5. Ablation suite
+## 5. Verification-method ablation
 
 Path: `examples/FlowConformal/experiments/exp_ablation/outputs/`
 
-### 5.1 Shared-flow verification-method ablation (current, v3)
-
-`ablation_shared_flow.py` — calibrates the flow ONCE per instance and
+`ablation_shared_flow.py` calibrates the flow ONCE per instance and
 runs all selected verifiers against the shared `(flow, q)` tuple,
 isolating the verification-method axis.
 
@@ -382,41 +363,6 @@ per benchmark.
 | `error`, `timestamp` | as elsewhere |
 
 Active benchmarks: `acasxu_2023` (186 instances), `tllverify_2023` (32).
-
-### 5.2 Legacy verify-method ablation (v1, kept for reproducibility)
-
-`ablation_run_verify_method.py` (Phase G v1) ran each method on its
-*own* freshly-trained flow per instance, conflating verifier quality
-with flow randomness. Superseded by §5.1 but kept on disk.
-
-CSV: `ablation_verify_method_<method>.csv`. Probe schema:
-
-```
-onnx_file, vnnlib_file, verdict, q, worst_max_margin, amls_levels_used,
-wall_s, error
-```
-
-Same probe schema is used by the older AMLS-hparam, conformal-params,
-and flow-training ablations (`ablation_amls_hparam_*.csv`,
-`ablation_conformal_params_*.csv`, `ablation_flow_training_*.csv`) —
-all read by the legacy aggregator and not on any current sweep path.
-
-### 5.3 Score-function ablation
-
-`ablation_run_score.py` → CSV `ablation_score.csv`. Different schema
-(volume tightness across score families, no probe).
-
-| Column | Description |
-|---|---|
-| `network` | `3d_banana` / `5d_1lip_id` / `10d_1lip_id` / `20d_1lip_id` |
-| `dim` | output dimension |
-| `score` | `hyperrect` / `ball` / `ellipsoid` / `gmm` / `flow` |
-| `seed` | seed index |
-| `threshold` | conformal threshold for that score family |
-| `volume` | MC volume of `{y : score(y) ≤ threshold}` |
-| `volume_ratio` | volume / exact-volume floor |
-| `empirical_coverage` | held-out coverage |
-| `fit_time_s` | fit + threshold + volume estimate wall-clock |
 
 ---
 
@@ -475,14 +421,13 @@ recovers the basenames.
 
 1. **Sound-verifier results** — already published in VNN-COMP; just
    pulled from §6.
-2. **Exp 3** synthetic + score ablation (validates framework
-   analytically).
+2. **Exp 3** synthetic volume comparison (validates framework on
+   benchmarks with closed-form / cached MC ground truth).
 3. **Exp 1 ours** + 4 probabilistic baselines (Hashemi-clipping,
    Hashemi-clipping-PCA, SaVer, ProbStar).
-4. **Exp 2 ours** + 4 probabilistic baselines + soundness audit + RS
-   on cifar100.
+4. **Exp 2 ours** + 4 probabilistic baselines + RS on cifar100.
 5. **Exp 4 scaling** (synthetic 1-Lipschitz family, ours vs αβ-CROWN
    vs NeuralSAT vs Hashemi-clipping).
-6. **Ablations** (shared-flow verify-method ablation §5.1).
-7. **Phase 2 figure / table generation** under
+6. **Verification-method ablation** (shared-flow §5).
+7. **Figure / table generation** under
    `examples/FlowConformal/paper/` reads all of the above.

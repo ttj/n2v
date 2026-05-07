@@ -1,2 +1,0 @@
-benchmark,onnx_file,vnnlib_file,verdict,wall_s,train_s,verify_s,vnncomp_timeout_s,coverage,q,epsilon_total,delta_total,amls_bounded_eps_2_upper,amls_bounded_detected_unsafe,amls_levels_used,cex_x,cex_y,error,timestamp
-malbeware,malware_malimg_family_scaled_linear-25.onnx,malbeware_family-Obfuscator.AD_label-17_eps-1_idx-89.vnnlib,UNSAT,64.4,51.9,11.9,100,1.0000,10.1575,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-01T23:02:57.046544+00:00

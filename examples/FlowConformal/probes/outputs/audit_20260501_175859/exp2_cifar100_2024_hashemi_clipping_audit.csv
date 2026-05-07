@@ -1,2 +1,0 @@
-benchmark,instance,verdict,wall_s,timeout_s,m,ell,epsilon,coverage,confidence,cex_x,cex_y,error,timestamp
-cifar100_2024,CIFAR100_resnet_medium.onnx+CIFAR100_resnet_medium_prop_idx_7641_sidx_1041_eps_0.0039.vnnlib,UNSAT,970.1,100,8000,7999,0.001,0.9990,0.9970,,,,2026-05-01T23:42:21.062427+00:00

@@ -1,2 +1,0 @@
-benchmark,onnx_file,vnnlib_file,verdict,wall_s,train_s,verify_s,vnncomp_timeout_s,coverage,q,epsilon_total,delta_total,amls_bounded_eps_2_upper,amls_bounded_detected_unsafe,amls_levels_used,cex_x,cex_y,error,timestamp
-tllverify_2023,tllBench_n=2_N=M=8_m=1_instance_0_0.onnx,property_N=8_0.vnnlib,UNSAT,64.0,51.7,11.7,600,1.0000,2.7941,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-01T23:01:43.202949+00:00

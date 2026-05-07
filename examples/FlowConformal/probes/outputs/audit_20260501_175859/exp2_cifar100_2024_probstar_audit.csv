@@ -1,2 +1,0 @@
-benchmark,instance,verdict,wall_s,timeout_s,p_filter,lp_solver,p_min,p_max,threshold,n_disjuncts,error,timestamp
-cifar100_2024,CIFAR100_resnet_medium.onnx+CIFAR100_resnet_medium_prop_idx_7641_sidx_1041_eps_0.0039.vnnlib,NOT_APPLICABLE,4.10,100,0.0,gurobi,,,0.001,0,load_onnx_network AssertionError: AssertionError,2026-05-01T23:17:36.656900+00:00

@@ -1,3 +1,0 @@
-instance_idx,instance_name,config_name,n_train,flow_epochs,scenario_n_samples,mcmc_step_size,verdict,eps_2,detected_unsafe,levels_used,wall_s,flipped_to
-45,onnx/ACASXU_run2a_1_1_batch_2000.onnx|vnnlib/prop_2.vnnlib,baseline,10000,2000,2000,0.3,UNSAT,3.1124924949170614e-30,False,30,68.4,still UNSAT (FN)
-45,onnx/ACASXU_run2a_1_1_batch_2000.onnx|vnnlib/prop_2.vnnlib,bumped_2x,20000,5000,2000,0.3,UNSAT,3.1124924949170614e-30,False,30,260.8,still UNSAT (FN)

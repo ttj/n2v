@@ -1,2 +1,0 @@
-benchmark,instance,verdict,wall_s,timeout_s,beta,dkw_epsilon,delta,n_samples,k_disjuncts,beta_per,delta_per,n_certified_disjuncts,worst_prob_unsafe,union_upper_bound_unsafe,n_unsafe_samples,error,timestamp
-cifar100_2024,CIFAR100_resnet_medium.onnx+CIFAR100_resnet_medium_prop_idx_7641_sidx_1041_eps_0.0039.vnnlib,UNKNOWN,13.40,100,0.001,0.01,0.001,60981,99,1.0101010101010101e-05,1.0101010101010101e-05,0,0.0,0.99,0,,2026-05-01T23:17:53.961732+00:00

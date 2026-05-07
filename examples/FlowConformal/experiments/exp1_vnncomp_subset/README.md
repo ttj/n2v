@@ -49,16 +49,14 @@ exp1_vnncomp_subset/
 ├── _benchmarks.py                         per-benchmark loader dispatch + hparam config
 ├── exp1_run_ours.py                       single ours runner (--benchmark X)
 ├── exp1_run_hashemi_clipping.py           single Hashemi runner (--benchmark X)
-├── exp1_aggregate.py                      builds exp1_comparison_table.csv
 ├── ground_truth.csv                       pre-computed VNN-COMP consensus (run-once)
 └── outputs/                               per-(benchmark, tool) CSVs land here
 ```
 
 ## Per-benchmark hparam locks
 
-All 5 original benchmarks are validated by the lock probe at
-[`probes/outputs/probe_amls_bounded_lock.csv`](../../probes/outputs/probe_amls_bounded_lock.csv)
-(5 instances each, status `ok`):
+The locked production config per benchmark (committed in
+`_benchmarks.py:PER_BENCHMARK_CONFIG`):
 
 | benchmark              | flow_config | n_train | flow_epochs | scenario_n_samples | max_levels |
 |------------------------|-------------|---------|-------------|---------------------|------------|
@@ -95,7 +93,7 @@ done
 The canonical entry point is the project-level launcher:
 
 ```bash
-bash examples/FlowConformal/experiments/run_all_sweeps.sh --phase 1
+bash examples/FlowConformal/experiments/run_paper_sweeps.sh --phase exp1
 ```
 
 It dispatches each `(benchmark, tool)` cell through
@@ -105,14 +103,9 @@ exit 124. A single hung instance never kills the rest of the cell.
 
 ## Aggregation
 
-After the sweep, build the comparison table:
-
-```bash
-$PY -m examples.FlowConformal.experiments.exp1_vnncomp_subset.exp1_aggregate
-```
-
-Reads every `outputs/exp1_<bench>_<tool>.csv`, joins against
-[`ground_truth.csv`](ground_truth.csv), writes
-`outputs/exp1_comparison_table.csv` with one row per `(benchmark,
-method)` containing verdict counts, p10/median/p90 wall-clock, and
-false-UNSAT / false-SAT counts and percentages.
+The headline `% Solved` and `UNSAT-recall` numbers are computed by the
+paper-side scripts under `examples/FlowConformal/paper/tables/`
+(`main_table.py`, `main_table_recall.py`, `main_table_recall_compact.py`),
+which read every `outputs/exp1_<bench>_<tool>.csv` directly and join
+against [`ground_truth.csv`](ground_truth.csv). No intermediate
+aggregate step is needed.

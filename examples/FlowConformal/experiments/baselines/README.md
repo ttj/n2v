@@ -12,7 +12,6 @@ injection at runtime.
 baselines/
 ├── README.md                       # this file
 ├── _common.py                      # shared loaders, CSV schema, spec helpers
-├── run_hashemi_naive.py            # Hashemi center-based surrogate
 ├── run_hashemi_clipping.py         # Hashemi clipping-block surrogate
 ├── run_rs.py                       # Cohen et al. randomized smoothing
 ├── run_saver.py                    # Convertino HSCC 2025 (DKW path)
@@ -40,9 +39,9 @@ Default output is
 
 ## Runner-specific notes
 
-### `run_hashemi_naive.py` / `run_hashemi_clipping.py`
+### `run_hashemi_clipping.py`
 
-These wrap `n2v.probabilistic.verify(surrogate=...)` (the legacy
+Wraps `n2v.probabilistic.verify(surrogate='clipping_block')` (the
 Hashemi pipeline already in n2v, NOT part of AMLS). The surrogate
 fits a calibrated bounding box; we then check whether the box is
 disjoint from the spec's unsafe halfspace using interval arithmetic.

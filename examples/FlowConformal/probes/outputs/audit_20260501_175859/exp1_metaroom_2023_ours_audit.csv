@@ -1,2 +1,0 @@
-benchmark,onnx_file,vnnlib_file,verdict,wall_s,train_s,verify_s,vnncomp_timeout_s,coverage,q,epsilon_total,delta_total,amls_bounded_eps_2_upper,amls_bounded_detected_unsafe,amls_levels_used,cex_x,cex_y,error,timestamp
-metaroom_2023,6cnn_tz_35_5_no_custom_OP.onnx,spec_idx_176_eps_0.00001000.vnnlib,UNSAT,64.6,52.2,11.5,210,0.0000,0.7150,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-01T23:04:12.563158+00:00

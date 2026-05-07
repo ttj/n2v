@@ -1,7 +1,0 @@
-benchmark,instance,method,hp_name,m,n_train,flow_epochs,scenario_n_samples,verdict,wall_s,vnncomp_timeout_s,coverage_empirical,coverage_n_test,q,epsilon_total,delta_total,error,timestamp
-collins_rul_cnn_2022,NN_rul_small_window_20.onnx+robustness_2perturbations_delta5_epsilon10_w20.vnnlib,hashemi_clipping,m=500,500,,,,SAT,0.7,30,1.0000,1000,,0.0010,,,2026-04-28T06:45:39
-collins_rul_cnn_2022,NN_rul_small_window_20.onnx+robustness_2perturbations_delta5_epsilon10_w20.vnnlib,hashemi_clipping,m=2000,2000,,,,SAT,4.7,30,0.9990,1000,,0.0010,,,2026-04-28T06:45:44
-collins_rul_cnn_2022,NN_rul_small_window_20.onnx+robustness_2perturbations_delta5_epsilon10_w20.vnnlib,hashemi_clipping,m=8000,8000,,,,TIMEOUT,39.1,30,,,,,,timeout 30s,2026-04-28T06:46:23
-collins_rul_cnn_2022,NN_rul_small_window_20.onnx+robustness_2perturbations_delta5_epsilon10_w20.vnnlib,ours,small,,1000,1000,500,UNKNOWN,19.1,30,1.0000,,2.2123,0.0010,0.9960,,2026-04-28T06:46:42
-collins_rul_cnn_2022,NN_rul_small_window_20.onnx+robustness_2perturbations_delta5_epsilon10_w20.vnnlib,ours,medium,,2000,2000,1000,UNKNOWN,23.1,30,1.0000,,2.3752,0.0010,0.9960,,2026-04-28T06:47:05
-collins_rul_cnn_2022,NN_rul_small_window_20.onnx+robustness_2perturbations_delta5_epsilon10_w20.vnnlib,ours,full,,5000,2000,2000,TIMEOUT,30.0,30,,,,,,timeout 30s,2026-04-28T06:47:35

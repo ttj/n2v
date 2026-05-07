@@ -1,2 +1,0 @@
-benchmark,onnx_file,vnnlib_file,verdict,wall_s,train_s,verify_s,vnncomp_timeout_s,coverage,q,epsilon_total,delta_total,amls_bounded_eps_2_upper,amls_bounded_detected_unsafe,amls_levels_used,cex_x,cex_y,error,timestamp
-linearizenn_2024,AllInOne_10_10.onnx,prop_10_10.vnnlib,SAT,0.6,0.0,0.0,900,,,,,,,,"[-0.7789662480354309, 0.800000011920929, -1.3253693580627441, -1.4675618410110474]","[40.478965759277344, -40.478965759277344]",,2026-05-01T23:00:31.035695+00:00
