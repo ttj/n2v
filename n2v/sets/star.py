@@ -11,7 +11,6 @@ Translated from MATLAB NNV Star.m
 from concurrent.futures import ThreadPoolExecutor
 from typing import List, Optional, Tuple, TYPE_CHECKING
 
-import cvxpy as cp
 import numpy as np
 from scipy.linalg import block_diag
 
@@ -479,7 +478,7 @@ class Star:
             """Compute range for dimension i."""
             try:
                 return i, self.get_range(i, lp_solver)
-            except Exception as e:
+            except Exception:
                 # If LP fails, return None to indicate failure
                 return i, (None, None)
 

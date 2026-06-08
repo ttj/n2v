@@ -1,6 +1,6 @@
 """Rotated linear golden-path at production-scale flow training.
 
-Same closed-form benchmark as test_rotated_linear.py, but with the
+Same closed-form benchmark as demo_rotated_linear.py, but with the
 ``flow_config='production'`` training config (hidden=128, n_layers=4,
 standardize_outputs=True, Sinkhorn OT coupling on GPU).
 
@@ -20,7 +20,7 @@ import torch
 from examples.FlowConformal.benchmarks._common_analytical import (
     print_report, run_pipeline,
 )
-from examples.FlowConformal.benchmarks.test_rotated_linear import (
+from examples.FlowConformal.benchmarks.demo_rotated_linear import (
     RotatedLinear, _rot_2d, _rot_3d,
 )
 

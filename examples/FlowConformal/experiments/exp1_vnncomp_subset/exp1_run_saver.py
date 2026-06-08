@@ -11,8 +11,8 @@ malbeware, metaroom).
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    cd /path/to/n2v
+    python -m \\
         examples.FlowConformal.experiments.exp1_vnncomp_subset.exp1_run_saver \\
         --benchmark acasxu_2023 --smoke
 """
@@ -28,6 +28,9 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from examples.FlowConformal.experiments._runner_utils import (
+    append_csv_row_with_defaults,
+)
 from examples.FlowConformal.experiments.exp1_vnncomp_subset._benchmarks import (
     EXP1_BENCHMARKS,
     list_instances,
@@ -119,17 +122,12 @@ def _run_one_idx(idx, instances_meta, process_one, benchmark):
 
 
 def _write_timeout_row(out_csv, benchmark, name, timeout_s):
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader(); f.flush()
-        row = {f: '' for f in _FIELDS}
-        row.update({'benchmark': benchmark, 'instance': name,
-                    'verdict': 'TIMEOUT', 'timeout_s': timeout_s,
-                    'error': 'shell timeout (run_cell.sh exit 124)',
-                    'timestamp': _now_iso()})
-        writer.writerow(row); f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'benchmark': benchmark, 'instance': name,
+        'verdict': 'TIMEOUT', 'timeout_s': timeout_s,
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 def main():

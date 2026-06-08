@@ -461,7 +461,7 @@ def empirical_coverage_for_box(
 def torch_callable(network, batch_size: int = 100):
     """Wrap a torch ``nn.Module`` (or any object with ``.forward``-like
     behaviour) into a numpy-in/numpy-out callable suitable for
-    ``n2v.probabilistic.verify``. Inference runs in eval mode on
+    ``n2v.probabilistic.conformal_reach``. Inference runs in eval mode on
     whatever device the network's parameters/buffers live on.
 
     The device is auto-detected once at wrap time. If the caller has

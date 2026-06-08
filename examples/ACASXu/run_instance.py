@@ -2,10 +2,12 @@
 """
 Verify a single ACAS Xu instance following NNV's VNN-COMP strategy.
 
-Strategy:
+Strategy (faithful to NNV's VNN-COMP pipeline):
 1. Falsification (random sampling, optionally with PGD)
-2. Two-stage verification for prop_3/4: approx first, then exact if needed
-3. Single-stage verification for other properties: exact directly
+2. Two-stage verification for ALL properties: approximate reachability first
+   (sound UNSAT short-circuit), then exact reachability only if approx is
+   inconclusive. Over-approx UNSAT is sound, so this never changes a verdict;
+   it only avoids the expensive exact pass when approx already proves safety.
 
 Output format (for parsing by bash script):
     RESULT:<SAT|UNSAT|UNKNOWN|ERROR>
@@ -95,7 +97,10 @@ def main():
 
         # Determine property number from filename
         prop_num = int(vnnlib_name.split('_')[1].split('.')[0])
-        use_two_stage = prop_num in [3, 4]
+        # NNV-style pipeline: try approximate reachability before exact for
+        # every property. Over-approx UNSAT is sound (over-approx safe => safe),
+        # so this is a pure speedup that cannot change a verdict.
+        use_two_stage = True
 
         # Step 1: Falsification (try each input region)
         for lb_region, ub_region in zip(lb_list, ub_list):
@@ -152,10 +157,10 @@ def main():
                     reach_sets = net.reach(input_set, method='approx')
                     verify_result = verify_specification(reach_sets, property_spec)
 
-                    if verify_result == 1:
+                    if verify_result.verdict == "UNSAT":
                         # UNSAT via approx for this region
                         continue
-                    elif verify_result == 0:
+                    elif verify_result.verdict == "SAT":
                         # SAT via approx
                         any_sat = True
                         total_time = time.time() - t_start
@@ -175,14 +180,14 @@ def main():
             if region_method == "approx+exact":
                 method_used = "approx+exact"
 
-            if verify_result == 0:
+            if verify_result.verdict == "SAT":
                 any_sat = True
                 total_time = time.time() - t_start
                 print(f"RESULT:SAT")
                 print(f"TIME:{total_time:.3f}")
                 print(f"METHOD:{method_used}")
                 return 0
-            elif verify_result != 1:
+            elif verify_result.verdict != "UNSAT":
                 all_unsat = False
 
         # All regions verified

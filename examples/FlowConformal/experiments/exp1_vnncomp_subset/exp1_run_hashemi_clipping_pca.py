@@ -1,7 +1,7 @@
 """Exp 1 — Hashemi-clipping with PCA (m=8000) runner.
 
 Identical to ``exp1_run_hashemi_clipping`` except it threads
-``pca_components`` through ``verify(...)``. Used for benchmarks where
+``pca_components`` through ``conformal_reach(...)``. Used for benchmarks where
 the raw ``clipping_block`` LP cost grows enough that PCA-augmented
 clipping is the published Hashemi-clipping configuration. In Exp 1 the
 canonical example is ``metaroom_2023`` (output dim 20).
@@ -12,8 +12,8 @@ column carries K so the aggregator can distinguish the two configs.
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    cd /path/to/n2v
+    python -m \\
         examples.FlowConformal.experiments.exp1_vnncomp_subset.exp1_run_hashemi_clipping_pca \\
         --benchmark metaroom_2023 --pca-components 10 --smoke
 """
@@ -31,6 +31,9 @@ from typing import Any, Dict
 import numpy as np
 import torch
 
+from examples.FlowConformal.experiments._runner_utils import (
+    append_csv_row_with_defaults,
+)
 from examples.FlowConformal.experiments.baselines._common import (
     empirical_coverage_for_box,
     halfspace_disjoint_from_box,
@@ -42,7 +45,8 @@ from examples.FlowConformal.experiments.exp1_vnncomp_subset._benchmarks import (
     list_instances,
     load_one_instance,
 )
-from n2v.probabilistic import verify
+from n2v.nn import NeuralNetwork
+from n2v.nn.reach import ConformalReachConfig
 from n2v.sets import Box
 from n2v.utils.falsify import falsify
 
@@ -69,26 +73,17 @@ def _now_iso() -> str:
 def _write_timeout_row(out_csv: Path, benchmark: str,
                        onnx_rel: str, vnn_rel: str,
                        vnncomp_t: int, pca_components: int) -> None:
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader()
-            f.flush()
-        out_row = {_f: '' for _f in _FIELDS}
-        out_row.update({
-            'benchmark': benchmark,
-            'onnx_file': Path(onnx_rel).name,
-            'vnnlib_file': Path(vnn_rel).name,
-            'verdict': 'TIMEOUT',
-            'wall_s': '',
-            'vnncomp_timeout_s': vnncomp_t,
-            'pca_components': pca_components,
-            'error': 'shell timeout (run_cell.sh exit 124)',
-            'timestamp': _now_iso(),
-        })
-        writer.writerow(out_row)
-        f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'benchmark': benchmark,
+        'onnx_file': Path(onnx_rel).name,
+        'vnnlib_file': Path(vnn_rel).name,
+        'verdict': 'TIMEOUT',
+        'wall_s': '',
+        'vnncomp_timeout_s': vnncomp_t,
+        'pca_components': pca_components,
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 def _run_one_instance(benchmark: str, onnx_rel: str, vnn_rel: str,
@@ -116,7 +111,8 @@ def _run_one_instance(benchmark: str, onnx_rel: str, vnn_rel: str,
         'n_steps': cfg.get('falsifier_n_steps', 100),
     }
 
-    model_fn = torch_callable(network)
+    net = NeuralNetwork(network)
+    model_fn = torch_callable(network)  # still needed for empirical_coverage_for_box below
     any_unknown = False
     cov_vals: list = []
     cov_n_total = 0
@@ -149,15 +145,14 @@ def _run_one_instance(benchmark: str, onnx_rel: str, vnn_rel: str,
                 pass
 
         try:
-            pbox = verify(
-                model=model_fn,
-                input_set=input_set,
-                m=_M, ell=_ELL,
-                epsilon=_EPSILON,
-                surrogate='clipping_block',
-                pca_components=pca_components,
-                seed=seed,
-                verbose=False,
+            pbox = net.reach(
+                input_set, method='conformal',
+                config=ConformalReachConfig(
+                    m=_M, ell=_ELL, epsilon=_EPSILON,
+                    surrogate='clipping_block',
+                    pca_components=pca_components,
+                    seed=seed, verbose=False,
+                ),
             )
         except Exception as e:
             return {'verdict': 'ERROR',

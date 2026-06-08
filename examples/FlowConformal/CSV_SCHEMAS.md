@@ -6,7 +6,7 @@ scripts depend on these schemas — do not rename columns or change
 dtypes without updating this file and the consumers.
 
 All paths are **relative to the n2v repo root**
-(`/home/sasakis/v/tools/n2v`) unless stated otherwise.
+(`/path/to/n2v`) unless stated otherwise.
 
 ## Conventions
 
@@ -353,7 +353,7 @@ per benchmark.
 | `box_idx` | 0-indexed box (ACAS Xu prop_3 / prop_4 are OR-of-input-regions) |
 | `onnx_file`, `vnnlib_file` | basenames |
 | `ground_truth` | from the per-benchmark ground-truth CSV |
-| `method` | one of {`scenario`, `scenario_v2`, `amls`, `is_tilted`, `derived`, `amls_bounded`, `amls_bounded_union`, `raw_mc_uniform`} |
+| `method` | one of {`scenario`, `amls`, `is_tilted`, `amls_bounded`, `amls_bounded_union`, `raw_mc_uniform`} |
 | `verdict` | as elsewhere |
 | `q`, `coverage`, `epsilon_total` | as elsewhere |
 | `amls_bounded_eps_2_upper` | as elsewhere |

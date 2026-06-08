@@ -1,7 +1,7 @@
 """Exp 2 — Hashemi-clipping with PCA (m=8000) runner.
 
 Identical to ``exp2_run_hashemi_clipping`` except it threads a
-``pca_components`` argument into ``verify(...)``. PCA-augmented
+``pca_components`` argument into ``conformal_reach(...)``. PCA-augmented
 clipping is the configuration the published Hashemi-clipping paper
 uses on high-output-dim networks (semantic segmentation, multi-class
 classifiers); raw clipping_block solves m=8000 LPs per instance with
@@ -19,8 +19,8 @@ column carries K so the aggregator can distinguish the two configs.
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    cd /path/to/n2v
+    python -m \\
         examples.FlowConformal.experiments.exp2_prob_scale.exp2_run_hashemi_clipping_pca \\
         --benchmark cifar100_2024 --pca-components 32 --smoke
 """
@@ -38,6 +38,9 @@ from typing import Any, Dict
 import numpy as np
 import torch
 
+from examples.FlowConformal.experiments._runner_utils import (
+    append_csv_row_with_defaults,
+)
 from examples.FlowConformal.experiments.baselines._common import (
     halfspace_disjoint_from_box,
     torch_callable,
@@ -48,7 +51,8 @@ from examples.FlowConformal.experiments.exp2_prob_scale._benchmarks import (
     list_instances,
     load_one_instance,
 )
-from n2v.probabilistic import verify
+from n2v.nn import NeuralNetwork
+from n2v.nn.reach import ConformalReachConfig
 from n2v.sets import Box
 from n2v.utils.falsify import falsify
 
@@ -74,24 +78,15 @@ def _now_iso() -> str:
 def _write_timeout_row(out_csv: Path, benchmark: str, name: str,
                        timeout_s: int, pca_components: int,
                        m: int, training_samples: int) -> None:
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader()
-            f.flush()
-        out_row = {_f: '' for _f in _FIELDS}
-        out_row.update({
-            'benchmark': benchmark, 'instance': name,
-            'verdict': 'TIMEOUT', 'timeout_s': timeout_s,
-            'm': m, 'ell': m - 1,
-            'pca_components': pca_components,
-            'training_samples': training_samples,
-            'error': 'shell timeout (run_cell.sh exit 124)',
-            'timestamp': _now_iso(),
-        })
-        writer.writerow(out_row)
-        f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'benchmark': benchmark, 'instance': name,
+        'verdict': 'TIMEOUT', 'timeout_s': timeout_s,
+        'm': m, 'ell': m - 1,
+        'pca_components': pca_components,
+        'training_samples': training_samples,
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 def _run_one_instance(benchmark: str, loader, *, seed: int,
@@ -122,7 +117,8 @@ def _run_one_instance(benchmark: str, loader, *, seed: int,
         'n_steps': cfg.get('falsifier_n_steps', 100),
     }
 
-    model_fn = torch_callable(network)
+    net = NeuralNetwork(network)
+    model_fn = torch_callable(network)  # still needed for empirical_coverage_for_box below
     any_unknown = False
     last_pbox = None
     cex_x_str = ''
@@ -153,19 +149,18 @@ def _run_one_instance(benchmark: str, loader, *, seed: int,
                 pass
 
         try:
-            verify_kwargs = dict(
-                model=model_fn,
-                input_set=input_set,
-                m=m, ell=m - 1,
-                epsilon=_EPSILON,
+            config_kwargs = dict(
+                m=m, ell=m - 1, epsilon=_EPSILON,
                 surrogate='clipping_block',
                 pca_components=pca_components,
-                seed=seed,
-                verbose=False,
+                seed=seed, verbose=False,
             )
             if training_samples is not None:
-                verify_kwargs['training_samples'] = training_samples
-            pbox = verify(**verify_kwargs)
+                config_kwargs['training_samples'] = training_samples
+            pbox = net.reach(
+                input_set, method='conformal',
+                config=ConformalReachConfig(**config_kwargs),
+            )
         except Exception as e:
             return {'verdict': 'ERROR',
                     'error': f'verify box={box_idx} {type(e).__name__}: {e}'}

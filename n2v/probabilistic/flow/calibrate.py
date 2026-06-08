@@ -5,9 +5,10 @@ Provides score-agnostic calibration (sort scores, pick threshold)
 and the double-step probabilistic guarantee computation.
 """
 
+from typing import Tuple
+
 import torch
 from scipy.stats import beta as beta_dist
-from typing import Tuple
 
 
 def calibrate(scores: torch.Tensor, ell: int) -> torch.Tensor:

@@ -57,8 +57,8 @@ outputs/                          per-(depth, tool) CSVs land here
 ## Smoke
 
 ```bash
-PY=/home/sasakis/miniconda3/envs/n2v/bin/python
-cd /home/sasakis/v/tools/n2v
+PY=python
+cd /path/to/n2v
 for tool in ours hashemi_clipping alpha_beta_crown neuralsat; do
   for d in 2 4 8 16 24 32 40; do
     $PY -m examples.FlowConformal.experiments.exp4_scaling.exp4_run_$tool \

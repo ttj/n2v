@@ -1,4 +1,4 @@
-"""Shared runner for Phase-2 golden-path end-to-end benchmarks.
+"""Shared runner for golden-path end-to-end benchmarks.
 
 Runs the full flow-conformal pipeline on a given ``(network, x_center,
 radius)`` triple and prints a comparison table of conformal set volumes

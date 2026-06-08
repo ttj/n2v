@@ -272,7 +272,6 @@ def _fuse_graph_module(gm: 'torch.fx.GraphModule') -> 'torch.fx.GraphModule':
     Returns:
         The GraphModule with fused layers and recompiled graph.
     """
-    import torch.fx
 
     graph = gm.graph
     nodes = list(graph.nodes)

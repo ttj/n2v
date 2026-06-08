@@ -321,7 +321,6 @@ class TestHexatope:
     # MCF vs LP Solver Comparison Tests
     # ========================================================================
 
-    # @pytest.mark.skip(reason="get_range with MCF may return None - implementation issue")
     def test_get_range_mcf_vs_lp(self):
         """Test that MCF and LP solvers give same results."""
         lb = np.array([[0.0], [0.0]])
@@ -352,7 +351,6 @@ class TestHexatope:
         np.testing.assert_allclose(bounds_mcf[0], bounds_lp[0], atol=1e-5)
         np.testing.assert_allclose(bounds_mcf[1], bounds_lp[1], atol=1e-5)
 
-    # @pytest.mark.skip(reason="optimize_linear with MCF may return None - implementation issue")
     def test_optimize_linear_mcf_vs_lp(self):
         """Test that MCF and LP give same optimization results."""
         lb = np.array([[0.0], [0.0]])

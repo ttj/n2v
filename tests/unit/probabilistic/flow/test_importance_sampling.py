@@ -1,7 +1,7 @@
 """Tests for C2 / Tilted Importance Sampling flow-set detector.
 
 These tests exercise the self-normalised IS estimator on small synthetic
-flows, plus the dispatch into ``run_verification_pipeline`` via
+flows, plus the dispatch into ``verify_specification`` via
 ``verification_method='is_tilted'``.
 """
 from __future__ import annotations
@@ -69,6 +69,7 @@ def test_is_returns_correct_shape_and_keys():
 # ---------- Unbiasedness on a known case ----------
 
 
+@pytest.mark.slow
 def test_is_zero_lambda_recovers_flat_mc():
     """At lambda=0 all weights are 1 and pi_hat reduces to the flat
     Monte-Carlo indicator average. That is exactly P_flow(U) under p_z.
@@ -89,6 +90,7 @@ def test_is_zero_lambda_recovers_flat_mc():
     assert res.pi_hat >= true_mass / 2.0
 
 
+@pytest.mark.slow
 def test_is_self_normalised_estimates_q_conditional_mass():
     """Self-normalised IS with samples drawn from p_z and weights w(z)
     estimates the q-CONDITIONAL mass of U, not P_flow(U):
@@ -221,51 +223,3 @@ def test_is_certify_spec_two_groups_one_disjoint_unsat():
     assert res.detected_any is True
 
 
-# ---------- End-to-end dispatch via run_verification_pipeline ----------
-
-
-@pytest.mark.slow
-def test_is_dispatch_in_common_py_returns_unknown_when_unsafe_reachable():
-    """verification_method='is_tilted' end-to-end on a small banana network
-    where the spec is reachable. Expect verdict=UNKNOWN with
-    is_detected_unsafe=True.
-    """
-    from examples.FlowConformal.benchmarks._common import \
-        run_verification_pipeline
-    from examples.FlowConformal.networks import RotatedBananaNet
-
-    torch.manual_seed(0)
-    net = RotatedBananaNet().eval()
-    # Trivially-reachable spec: y_0 <= +1e9 (always true).
-    spec = HalfSpace(np.array([[1.0, 0.0]]), np.array([[1e9]]))
-    res = run_verification_pipeline(
-        network=net,
-        input_lb=np.array([0.0, 0.0]),
-        input_ub=np.array([1.0, 1.0]),
-        spec=spec,
-        alpha=0.01, m=200, ell=199,
-        scenario_n_samples=200, scenario_beta=0.001,
-        n_train=500, flow_epochs=100, flow_config='base',
-        seed=0, sat_backend=None,
-        verification_method='is_tilted',
-    )
-    assert res['verdict'] == 'UNKNOWN'
-    assert res['is_detected_unsafe'] is True
-
-
-def test_is_dispatch_invalid_method_rejected():
-    """run_verification_pipeline must reject unknown verification_method."""
-    from examples.FlowConformal.benchmarks._common import \
-        run_verification_pipeline
-    from examples.FlowConformal.networks import RotatedBananaNet
-
-    net = RotatedBananaNet().eval()
-    spec = HalfSpace(np.array([[1.0, 0.0]]), np.array([[1.0]]))
-    with pytest.raises(ValueError, match='unsupported verification_method'):
-        run_verification_pipeline(
-            network=net,
-            input_lb=np.array([0.0, 0.0]),
-            input_ub=np.array([1.0, 1.0]),
-            spec=spec, sat_backend=None,
-            verification_method='not_a_real_method',
-        )

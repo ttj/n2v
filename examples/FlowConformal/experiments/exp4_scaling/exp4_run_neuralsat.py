@@ -10,15 +10,15 @@ Calls NeuralSAT via :mod:`examples.FlowConformal.experiments._external_verifiers
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
+    cd /path/to/n2v
 
     # Smoke (1 instance at depth 2):
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    python -m \\
         examples.FlowConformal.experiments.exp4_scaling.exp4_run_neuralsat \\
         --depth 2 --smoke
 
     # Full sweep at depth 16:
-    nohup /home/sasakis/miniconda3/envs/n2v/bin/python -u -m \\
+    nohup python -u -m \\
         examples.FlowConformal.experiments.exp4_scaling.exp4_run_neuralsat \\
         --depth 16 \\
         > examples/FlowConformal/experiments/exp4_scaling/outputs/exp4_d16_neuralsat.log 2>&1 &
@@ -40,6 +40,9 @@ from pathlib import Path
 
 from examples.FlowConformal.experiments._external_verifiers import (
     run_neuralsat,
+)
+from examples.FlowConformal.experiments._runner_utils import (
+    append_csv_row_with_defaults,
 )
 from examples.FlowConformal.experiments.exp4_scaling._benchmarks import (
     load_instances,
@@ -66,18 +69,13 @@ def _now_iso() -> str:
 
 
 def _write_timeout_row(out_csv, depth, instance_idx, timeout_s):
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader(); f.flush()
-        row = {_f: '' for _f in _FIELDS}
-        row.update({'depth': depth, 'instance_idx': instance_idx,
-                    'method': 'neuralsat', 'verdict': 'TIMEOUT',
-                    'timeout_s': timeout_s,
-                    'error': 'shell timeout (run_cell.sh exit 124)',
-                    'timestamp': _now_iso()})
-        writer.writerow(row); f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'depth': depth, 'instance_idx': instance_idx,
+        'method': 'neuralsat', 'verdict': 'TIMEOUT',
+        'timeout_s': timeout_s,
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 def main():

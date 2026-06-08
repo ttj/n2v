@@ -9,7 +9,7 @@ import warnings
 import torch
 import torch.nn as nn
 import numpy as np
-from typing import List, Union
+from typing import List
 
 # Import set types
 from n2v.sets import Star, Zono, Box, Hexatope, Octatope

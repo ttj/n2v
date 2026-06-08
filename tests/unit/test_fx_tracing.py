@@ -252,12 +252,60 @@ class TestUntraceableModelError:
             NeuralNetwork(model).reach(input_star, method='approx')
 
     def test_inline_module_error_message_suggests_fix(self):
-        """Error for inline nn.ReLU()(x) must suggest F.relu(x) as alternative."""
+        """Error for inline nn.ReLU()(x) must suggest F.relu(x) as alternative.
+
+        ``NeuralNetwork.__init__`` defers the trace error so probabilistic
+        methods can still run on un-traceable models; the error surfaces
+        when a sound method is actually invoked.
+        """
         model = InlineReLUModel()
         model.eval()
+        input_star = _make_input_star()
 
         with pytest.raises(TypeError, match="F.relu.*instead of.*nn.ReLU"):
-            NeuralNetwork(model)
+            NeuralNetwork(model).reach(input_star, method='approx')
+
+    def test_untraceable_model_allows_probabilistic_methods(self):
+        """Un-traceable models can still construct and reach via probabilistic
+        methods (which don't need the layer inventory).
+
+        Regression test for the post-NeurIPS refactor: ``NeuralNetwork()``
+        used to eagerly ``torch.fx``-trace the model in ``__init__``,
+        causing the ``flow_matching`` / ``conformal`` paths to fail for
+        any model with data-dependent control flow (e.g. the ACAS Xu
+        wrapper's ``if x.dim() == 2:`` reshape branch). The fix makes
+        ``layers`` a lazy property — probabilistic methods never read
+        it, so untraceable models work for those paths; the trace only
+        runs (and raises) when sound methods need the layer inventory.
+        """
+        from n2v.sets import Box
+        from n2v.probabilistic import FlowReachConfig
+        import numpy as np
+        model = UntraceableModel()  # 3-D input -> 2-D output, data-dep ctrl flow
+        model.eval()
+
+        # Construction succeeds (no eager trace).
+        net = NeuralNetwork(model)
+        assert net._layers_cache is None, (
+            'Expected layers cache empty until first access')
+
+        # Probabilistic reach proceeds — never reads ``layers``.
+        # (UntraceableModel takes 3-D input.)
+        input_box = Box(np.array([-0.1, -0.1, -0.1]),
+                        np.array([ 0.1,  0.1,  0.1]))
+        prob_set = net.reach(
+            input_box, method='flow_matching',
+            config=FlowReachConfig(
+                epsilon=0.001, m=200, ell=199,
+                n_train=200, flow_epochs=20, flow_config='base',
+                seed=0,
+            ),
+        )
+        assert prob_set is not None
+
+        # And reading the ``layers`` property directly does raise.
+        with pytest.raises(TypeError, match="traceable by torch.fx"):
+            _ = net.layers
 
 
 class TestSequentialModelParity:
@@ -291,11 +339,17 @@ class TestSequentialModelParity:
 class TestNeuralNetworkLayers:
     """Test that NeuralNetwork.layers reflects all ops after fx tracing."""
 
-    def test_inline_relu_raises_in_init(self):
-        """NeuralNetwork.__init__ must raise TypeError for inline nn.ReLU()."""
+    def test_inline_relu_raises_on_sound_reach(self):
+        """Inline nn.ReLU() trace failure must surface on sound .reach().
+
+        ``NeuralNetwork.__init__`` defers the trace error so probabilistic
+        methods still work; the error surfaces when a sound method
+        actually needs the layer inventory.
+        """
         model = InlineReLUModel()
+        input_star = _make_input_star()
         with pytest.raises(TypeError, match="F.relu"):
-            NeuralNetwork(model)
+            NeuralNetwork(model).reach(input_star, method='approx')
 
     def test_functional_relu_layer_count(self):
         """NeuralNetwork.layers must include F.relu as a layer."""

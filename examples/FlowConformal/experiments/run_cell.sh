@@ -31,7 +31,7 @@
 # calling the runner directly (without this wrapper) is fine.
 set -u
 
-PY=${PY:-/home/sasakis/miniconda3/envs/n2v/bin/python}
+PY=${PY:-python}
 TIMEOUT_BUFFER=${TIMEOUT_BUFFER:-60}    # seconds added on top of the per-instance budget
 KILL_AFTER=${KILL_AFTER:-30}            # SIGKILL grace after SIGTERM
 START_IDX=${START_IDX:-0}               # 0-indexed instance to start from
@@ -45,7 +45,7 @@ if [[ $# -lt 1 ]]; then
   echo "  runner-args: passed verbatim to the underlying runner" >&2
   echo "" >&2
   echo "Environment overrides:" >&2
-  echo "  PY              python interpreter (default: /home/sasakis/miniconda3/envs/n2v/bin/python)" >&2
+  echo "  PY              python interpreter (default: python, i.e. the activated env)" >&2
   echo "  TIMEOUT_BUFFER  seconds added to each instance's shell timeout (default: 60)" >&2
   echo "  KILL_AFTER      SIGKILL grace seconds after SIGTERM (default: 30)" >&2
   echo "  START_IDX       0-indexed instance to start from; skip earlier (default: 0)" >&2

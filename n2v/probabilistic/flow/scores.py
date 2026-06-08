@@ -194,3 +194,38 @@ class GMMScore(NonconformityScore):
         if device is not None:
             out = out.to(device)
         return out
+
+
+
+# ---- Pipeline-glue score decorators -----------------------------------
+#
+# These two classes wrap an existing :class:`FlowScore` (or any
+# score-fn-compatible callable) with extra behaviour useful in the
+# flow-matching reachability pipeline. They are not the algorithm itself —
+# they are composition tools used by the reach + verify dispatch.
+
+
+class _WhiteningFlowScore:
+    """Score function that whitens its input before delegating.
+
+    Lets callers (e.g. volume validation) keep passing raw network
+    outputs: whitening happens transparently before the underlying
+    :class:`FlowScore` operates.
+    """
+
+    def __init__(self, base_score_fn, y_mean: torch.Tensor,
+                 y_std: torch.Tensor):
+        self.base = base_score_fn
+        self.y_mean = y_mean
+        self.y_std = y_std
+
+    def __call__(self, y: torch.Tensor) -> torch.Tensor:
+        dev = y.device
+        y_w = (y - self.y_mean.to(dev)) / self.y_std.to(dev)
+        return self.base(y_w)
+
+    @property
+    def flow_model(self):
+        return self.base.flow_model
+
+

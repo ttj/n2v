@@ -6,15 +6,15 @@ one CSV row per instance under
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
+    cd /path/to/n2v
 
     # Smoke (1 instance at depth 2, expects UNSAT):
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    python -m \\
         examples.FlowConformal.experiments.exp4_scaling.exp4_run_ours \\
         --depth 2 --smoke
 
     # Full sweep at depth 16:
-    nohup /home/sasakis/miniconda3/envs/n2v/bin/python -u -m \\
+    nohup python -u -m \\
         examples.FlowConformal.experiments.exp4_scaling.exp4_run_ours \\
         --depth 16 \\
         > examples/FlowConformal/experiments/exp4_scaling/outputs/exp4_d16_ours.log 2>&1 &
@@ -38,8 +38,11 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from examples.FlowConformal.benchmarks._common import (
-    run_verification_pipeline,
+from examples.FlowConformal.experiments._runner_utils import (
+    append_csv_row_with_defaults,
+)
+from examples.FlowConformal.experiments._shared_flow_runner import (
+    run_flow_pipeline,
 )
 from examples.FlowConformal.experiments.exp4_scaling._benchmarks import (
     load_instances,
@@ -93,29 +96,27 @@ def _run_one_instance(inst: dict, *, seed: int) -> dict:
     net = inst['net']
     if torch.cuda.is_available():
         net = net.cuda()
+    # Exp 4 instances are UNSAT-by-construction (1-Lipschitz network +
+    # tight halfspace spec). Falsifier can't find a CEX and would burn
+    # ~115-190 s of PGD/APGD per instance. Skipping it here mirrors
+    # αβ-CROWN's ``attack: pgd_order: skip`` and NeuralSAT's
+    # ``--disable_attack`` for an apples-to-apples scaling comparison.
+    cfg = dict(
+        alpha=_CONFIG['alpha'],
+        n_train=_CONFIG['n_train'],
+        flow_epochs=_CONFIG['flow_epochs'],
+        flow_config=_CONFIG['flow_config'],
+        scenario_n_samples=_CONFIG['scenario_n_samples'],
+        verification_method=_CONFIG['verification_method'],
+        amls_max_levels=_CONFIG['amls_max_levels'],
+        amls_bounded_eps_2_target=_CONFIG.get('amls_bounded_eps_2_target'),
+        use_falsifier=False,
+    )
     try:
-        r = run_verification_pipeline(
-            network=net,
-            input_lb=inst['lb'],
-            input_ub=inst['ub'],
-            spec=inst['spec_halfspace'],
-            alpha=_CONFIG['alpha'],
-            n_train=_CONFIG['n_train'],
-            flow_epochs=_CONFIG['flow_epochs'],
-            flow_config=_CONFIG['flow_config'],
-            scenario_n_samples=_CONFIG['scenario_n_samples'],
-            scenario_beta=0.001,
-            verification_method=_CONFIG['verification_method'],
-            amls_max_levels=_CONFIG['amls_max_levels'],
-            seed=seed,
-            # Exp 4 instances are UNSAT-by-construction (1-Lipschitz
-            # network + tight halfspace spec). Falsifier can't find a
-            # CEX and would burn ~115-190s of PGD/APGD per instance.
-            # Skipping it here mirrors αβ-CROWN's `attack: pgd_order:
-            # skip` and NeuralSAT's `--disable_attack` for an
-            # apples-to-apples scaling comparison on pure
-            # sound-verification / probabilistic-AMLS work.
-            use_falsifier=False,
+        r = run_flow_pipeline(
+            net,
+            np.asarray(inst['lb']), np.asarray(inst['ub']),
+            inst['spec_halfspace'], cfg, seed=seed,
         )
     except NotImplementedError as e:
         return {'verdict': 'SKIPPED', 'error': f'{type(e).__name__}: {e}'}
@@ -155,18 +156,13 @@ def _now_iso() -> str:
 
 
 def _write_timeout_row(out_csv, depth, instance_idx, timeout_s):
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader(); f.flush()
-        row = {_f: '' for _f in _FIELDS}
-        row.update({'depth': depth, 'instance_idx': instance_idx,
-                    'method': 'ours', 'verdict': 'TIMEOUT',
-                    'timeout_s': timeout_s,
-                    'error': 'shell timeout (run_cell.sh exit 124)',
-                    'timestamp': _now_iso()})
-        writer.writerow(row); f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'depth': depth, 'instance_idx': instance_idx,
+        'method': 'ours', 'verdict': 'TIMEOUT',
+        'timeout_s': timeout_s,
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 

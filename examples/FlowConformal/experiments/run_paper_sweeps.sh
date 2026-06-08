@@ -44,8 +44,11 @@
 
 set -u
 
-PY=/home/sasakis/miniconda3/envs/n2v/bin/python
-REPO=/home/sasakis/v/tools/n2v
+# Defaults are overridable: `PY=/some/python REPO=/elsewhere bash run_paper_sweeps.sh`.
+# PY defaults to whatever `python` is on PATH (i.e. the activated n2v env);
+# REPO is derived from this script's own location so it works from any clone.
+PY="${PY:-python}"
+REPO="${REPO:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}"
 PHASE=all
 DRY_RUN=0
 FORCE=0

@@ -7,8 +7,8 @@ benchmark and writes one CSV row per instance.
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    cd /path/to/n2v
+    python -m \\
         examples.FlowConformal.experiments.exp2_prob_scale.exp2_run_hashemi_clipping \\
         --benchmark cifar10_resnet110 --smoke
 """
@@ -26,6 +26,9 @@ from typing import Any, Dict
 import numpy as np
 import torch
 
+from examples.FlowConformal.experiments._runner_utils import (
+    append_csv_row_with_defaults,
+)
 from examples.FlowConformal.experiments.baselines._common import (
     halfspace_disjoint_from_box,
     torch_callable,
@@ -36,7 +39,8 @@ from examples.FlowConformal.experiments.exp2_prob_scale._benchmarks import (
     list_instances,
     load_one_instance,
 )
-from n2v.probabilistic import verify
+from n2v.nn import NeuralNetwork
+from n2v.nn.reach import ConformalReachConfig
 from n2v.sets import Box
 from n2v.utils.falsify import falsify
 
@@ -62,21 +66,12 @@ def _now_iso() -> str:
 def _write_timeout_row(out_csv: Path, benchmark: str, name: str,
                        timeout_s: int) -> None:
     """Append a TIMEOUT row when killed by outer shell timeout."""
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader()
-            f.flush()
-        out_row = {_f: '' for _f in _FIELDS}
-        out_row.update({
-            'benchmark': benchmark, 'instance': name,
-            'verdict': 'TIMEOUT', 'timeout_s': timeout_s,
-            'error': 'shell timeout (run_cell.sh exit 124)',
-            'timestamp': _now_iso(),
-        })
-        writer.writerow(out_row)
-        f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'benchmark': benchmark, 'instance': name,
+        'verdict': 'TIMEOUT', 'timeout_s': timeout_s,
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 def _run_one_instance(benchmark: str, loader, *, seed: int) -> Dict[str, Any]:
@@ -108,7 +103,8 @@ def _run_one_instance(benchmark: str, loader, *, seed: int) -> Dict[str, Any]:
         'n_steps': cfg.get('falsifier_n_steps', 100),
     }
 
-    model_fn = torch_callable(network)
+    net = NeuralNetwork(network)
+    model_fn = torch_callable(network)  # still needed for empirical_coverage_for_box below
     any_unknown = False
     last_pbox = None
     cex_x_str = ''
@@ -120,7 +116,7 @@ def _run_one_instance(benchmark: str, loader, *, seed: int) -> Dict[str, Any]:
                         np.asarray(ub).flatten())
 
         # Stage-1 falsifier (parity with ours): runs BEFORE the
-        # Hashemi calibration ``verify(...)`` so a CEX short-circuits
+        # Hashemi calibration ``conformal_reach(...)`` so a CEX short-circuits
         # to SAT without paying calibration cost — matching the
         # falsify-first ordering in ``run_verification_pipeline``.
         # Uses the same APGD method and per-benchmark
@@ -145,14 +141,13 @@ def _run_one_instance(benchmark: str, loader, *, seed: int) -> Dict[str, Any]:
                 pass
 
         try:
-            pbox = verify(
-                model=model_fn,
-                input_set=input_set,
-                m=_M, ell=_ELL,
-                epsilon=_EPSILON,
-                surrogate='clipping_block',
-                seed=seed,
-                verbose=False,
+            pbox = net.reach(
+                input_set, method='conformal',
+                config=ConformalReachConfig(
+                    m=_M, ell=_ELL, epsilon=_EPSILON,
+                    surrogate='clipping_block',
+                    seed=seed, verbose=False,
+                ),
             )
         except Exception as e:
             return {'verdict': 'ERROR',

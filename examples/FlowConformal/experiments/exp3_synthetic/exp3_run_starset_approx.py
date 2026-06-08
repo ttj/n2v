@@ -17,7 +17,7 @@ reach-set volume (when available) and the resulting ratio
 
 Usage::
 
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    python -m \\
         examples.FlowConformal.experiments.exp3_synthetic.exp3_run_starset_approx \\
         --benchmark synth_5d --spec unsat --smoke
 """
@@ -34,6 +34,9 @@ from typing import Any, Dict
 import numpy as np
 import torch
 
+from examples.FlowConformal.experiments._runner_utils import (
+    append_csv_row_with_defaults,
+)
 from examples.FlowConformal.experiments.exp3_synthetic._benchmarks import (
     EXP3_BENCHMARKS,
     EXP3_SPECS,
@@ -210,17 +213,12 @@ def _run_one_seed(benchmark: str, spec_type: str, *,
 
 
 def _write_timeout_row(out_csv, benchmark, spec_type, seed):
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader(); f.flush()
-        row = {f: '' for f in _FIELDS}
-        row.update({'benchmark': benchmark, 'spec_type': spec_type,
-                    'seed': seed, 'verdict': 'TIMEOUT',
-                    'error': 'shell timeout (run_cell.sh exit 124)',
-                    'timestamp': _now_iso()})
-        writer.writerow(row); f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'benchmark': benchmark, 'spec_type': spec_type,
+        'seed': seed, 'verdict': 'TIMEOUT',
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 def main():

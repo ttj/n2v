@@ -1,19 +1,19 @@
 """
-Unit tests for verify.py module.
+Unit tests for the ``conformal_reach`` API (renamed from the legacy ``verify``).
 """
 
 import pytest
 import numpy as np
 
-from n2v.probabilistic import verify, ProbabilisticBox
+from n2v.probabilistic import conformal_reach, ProbabilisticBox
 from n2v.sets import Box
 
 
-class TestVerifyBasic:
-    """Basic tests for verify() function."""
+class TestConformalReachBasic:
+    """Basic tests for conformal_reach() function."""
 
-    def test_verify_with_identity_model(self):
-        """Test verify() with identity model (y = x)."""
+    def test_conformal_reach_with_identity_model(self):
+        """Test conformal_reach() with identity model (y = x)."""
         def identity_model(x):
             return x
 
@@ -21,9 +21,9 @@ class TestVerifyBasic:
         ub = np.array([1.0, 1.0])
         input_set = Box(lb, ub)
 
-        result = verify(
+        result = conformal_reach(
             model=identity_model,
-            input_set=input_set,
+            input_box=input_set,
             m=100,
             ell=99,
             epsilon=0.1,
@@ -38,8 +38,8 @@ class TestVerifyBasic:
         assert result.epsilon == 0.1
         assert result.coverage == 0.9
 
-    def test_verify_with_linear_model(self):
-        """Test verify() with linear model (y = 2x + 1)."""
+    def test_conformal_reach_with_linear_model(self):
+        """Test conformal_reach() with linear model (y = 2x + 1)."""
         def linear_model(x):
             return 2 * x + 1
 
@@ -47,9 +47,9 @@ class TestVerifyBasic:
         ub = np.array([1.0, 1.0, 1.0])
         input_set = Box(lb, ub)
 
-        result = verify(
+        result = conformal_reach(
             model=linear_model,
-            input_set=input_set,
+            input_box=input_set,
             m=100,
             ell=99,
             epsilon=0.1,
@@ -65,8 +65,8 @@ class TestVerifyBasic:
         assert np.all(result.lb <= 1.0 + 0.5)  # Some tolerance
         assert np.all(result.ub >= 3.0 - 0.5)  # Some tolerance
 
-    def test_verify_with_relu_model(self):
-        """Test verify() with simple ReLU model."""
+    def test_conformal_reach_with_relu_model(self):
+        """Test conformal_reach() with simple ReLU model."""
         def relu_model(x):
             return np.maximum(0, x - 0.5)
 
@@ -74,9 +74,9 @@ class TestVerifyBasic:
         ub = np.array([1.0, 1.0])
         input_set = Box(lb, ub)
 
-        result = verify(
+        result = conformal_reach(
             model=relu_model,
-            input_set=input_set,
+            input_box=input_set,
             m=100,
             ell=99,
             epsilon=0.1,
@@ -88,19 +88,19 @@ class TestVerifyBasic:
         assert result.dim == 2
 
 
-class TestVerifyReturns:
-    """Tests for verify() return values."""
+class TestConformalReachReturns:
+    """Tests for conformal_reach() return values."""
 
     def test_returns_probabilistic_box(self):
-        """Test that verify() returns ProbabilisticBox."""
+        """Test that conformal_reach() returns ProbabilisticBox."""
         def model(x):
             return x
 
         input_set = Box(np.zeros(5), np.ones(5))
 
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=50,
             seed=42
         )
@@ -115,9 +115,9 @@ class TestVerifyReturns:
         input_set = Box(np.zeros(3), np.ones(3))
 
         for epsilon in [0.01, 0.05, 0.1]:
-            result = verify(
+            result = conformal_reach(
                 model=model,
-                input_set=input_set,
+                input_box=input_set,
                 m=50,
                 epsilon=epsilon,
                 seed=42
@@ -133,9 +133,9 @@ class TestVerifyReturns:
 
         input_set = Box(np.zeros(2), np.ones(2))
 
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=100,
             ell=95,
             epsilon=0.05,
@@ -146,19 +146,19 @@ class TestVerifyReturns:
         assert result.ell == 95
 
 
-class TestVerifySurrogates:
+class TestConformalReachSurrogates:
     """Tests for different surrogate methods."""
 
     def test_naive_surrogate(self):
-        """Test verify() with naive surrogate."""
+        """Test conformal_reach() with naive surrogate."""
         def model(x):
             return x
 
         input_set = Box(np.zeros(3), np.ones(3))
 
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=50,
             surrogate='naive',
             seed=42
@@ -167,15 +167,15 @@ class TestVerifySurrogates:
         assert isinstance(result, ProbabilisticBox)
 
     def test_clipping_block_surrogate(self):
-        """Test verify() with clipping_block surrogate."""
+        """Test conformal_reach() with clipping_block surrogate."""
         def model(x):
             return x
 
         input_set = Box(np.zeros(3), np.ones(3))
 
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=50,
             surrogate='clipping_block',
             training_samples=25,
@@ -185,7 +185,7 @@ class TestVerifySurrogates:
         assert isinstance(result, ProbabilisticBox)
 
 
-class TestVerifyValidation:
+class TestConformalReachValidation:
     """Tests for input validation."""
 
     def test_invalid_input_set_type(self):
@@ -194,9 +194,9 @@ class TestVerifyValidation:
             return x
 
         with pytest.raises(TypeError, match="must be a Box"):
-            verify(
+            conformal_reach(
                 model=model,
-                input_set=np.array([0, 1]),  # Not a Box
+                input_box=np.array([0, 1]),  # Not a Box
                 m=50
             )
 
@@ -208,7 +208,7 @@ class TestVerifyValidation:
         input_set = Box(np.zeros(2), np.ones(2))
 
         with pytest.raises(ValueError, match="m must be"):
-            verify(model=model, input_set=input_set, m=0)
+            conformal_reach(model=model, input_box=input_set, m=0)
 
     def test_invalid_ell_raises_error(self):
         """Test that invalid ell raises ValueError."""
@@ -218,10 +218,10 @@ class TestVerifyValidation:
         input_set = Box(np.zeros(2), np.ones(2))
 
         with pytest.raises(ValueError, match="ell must be in"):
-            verify(model=model, input_set=input_set, m=50, ell=51)
+            conformal_reach(model=model, input_box=input_set, m=50, ell=51)
 
         with pytest.raises(ValueError, match="ell must be in"):
-            verify(model=model, input_set=input_set, m=50, ell=0)
+            conformal_reach(model=model, input_box=input_set, m=50, ell=0)
 
     def test_invalid_epsilon_raises_error(self):
         """Test that invalid epsilon raises ValueError."""
@@ -231,10 +231,10 @@ class TestVerifyValidation:
         input_set = Box(np.zeros(2), np.ones(2))
 
         with pytest.raises(ValueError, match="epsilon must be in"):
-            verify(model=model, input_set=input_set, m=50, epsilon=0.0)
+            conformal_reach(model=model, input_box=input_set, m=50, epsilon=0.0)
 
         with pytest.raises(ValueError, match="epsilon must be in"):
-            verify(model=model, input_set=input_set, m=50, epsilon=1.0)
+            conformal_reach(model=model, input_box=input_set, m=50, epsilon=1.0)
 
     def test_invalid_surrogate_raises_error(self):
         """Test that invalid surrogate raises ValueError."""
@@ -244,10 +244,10 @@ class TestVerifyValidation:
         input_set = Box(np.zeros(2), np.ones(2))
 
         with pytest.raises(ValueError, match="surrogate must be"):
-            verify(model=model, input_set=input_set, m=50, surrogate='invalid')
+            conformal_reach(model=model, input_box=input_set, m=50, surrogate='invalid')
 
 
-class TestVerifyBatchedInference:
+class TestConformalReachBatchedInference:
     """Tests for batched inference."""
 
     def test_batched_inference_produces_correct_shape(self):
@@ -260,9 +260,9 @@ class TestVerifyBatchedInference:
 
         input_set = Box(np.zeros(5), np.ones(5))
 
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=100,
             batch_size=25,  # 100 calibration / 25 = 4 batches
             training_samples=50,  # 50 training / 25 = 2 batches
@@ -280,9 +280,9 @@ class TestVerifyBatchedInference:
 
         input_set = Box(np.zeros(3), np.ones(3))
 
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=30,
             batch_size=5,
             seed=42
@@ -291,7 +291,7 @@ class TestVerifyBatchedInference:
         assert isinstance(result, ProbabilisticBox)
 
 
-class TestVerifyReproducibility:
+class TestConformalReachReproducibility:
     """Tests for reproducibility with seed."""
 
     def test_same_seed_same_result(self):
@@ -301,16 +301,16 @@ class TestVerifyReproducibility:
 
         input_set = Box(np.zeros(3), np.ones(3))
 
-        result1 = verify(
+        result1 = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=50,
             seed=12345
         )
 
-        result2 = verify(
+        result2 = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=50,
             seed=12345
         )
@@ -325,16 +325,16 @@ class TestVerifyReproducibility:
 
         input_set = Box(np.zeros(3), np.ones(3))
 
-        result1 = verify(
+        result1 = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=50,
             seed=12345
         )
 
-        result2 = verify(
+        result2 = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=50,
             seed=54321
         )
@@ -343,7 +343,7 @@ class TestVerifyReproducibility:
         assert not np.allclose(result1.lb, result2.lb)
 
 
-class TestVerifyDefaults:
+class TestConformalReachDefaults:
     """Tests for default parameter values."""
 
     def test_default_ell_is_m_minus_1(self):
@@ -353,9 +353,9 @@ class TestVerifyDefaults:
 
         input_set = Box(np.zeros(2), np.ones(2))
 
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=100,
             # ell not specified
             seed=42
@@ -370,9 +370,9 @@ class TestVerifyDefaults:
 
         input_set = Box(np.zeros(2), np.ones(2))
 
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=100,
             seed=42
         )
@@ -380,7 +380,7 @@ class TestVerifyDefaults:
         assert result.epsilon == 0.001
 
 
-class TestVerifyHighDimensional:
+class TestConformalReachHighDimensional:
     """Tests for higher dimensional inputs/outputs."""
 
     def test_high_dimensional_input(self):
@@ -391,9 +391,9 @@ class TestVerifyHighDimensional:
         np.random.seed(42)
         input_set = Box(np.zeros(100), np.ones(100))
 
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=50,
             seed=42
         )
@@ -407,9 +407,9 @@ class TestVerifyHighDimensional:
 
         input_set = Box(np.zeros(5), np.ones(5))
 
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=50,
             seed=42
         )
@@ -432,15 +432,15 @@ class TestClippingBlockTrainingOptimization:
         errors = training - projections
         assert np.allclose(errors, 0, atol=1e-6)
 
-    def test_verify_clipping_block_uses_zero_training_errors(self):
+    def test_conformal_reach_clipping_block_uses_zero_training_errors(self):
         """Verify the optimization produces identical results to the unoptimized path."""
         np.random.seed(0)
         model_fn = lambda x: x @ np.array([[1, 0.5], [0.5, 1], [0.3, 0.7]])
 
         input_set = Box(np.zeros(3), np.ones(3))
-        result = verify(
+        result = conformal_reach(
             model=model_fn,
-            input_set=input_set,
+            input_box=input_set,
             m=100,
             surrogate='clipping_block',
             training_samples=50,
@@ -462,9 +462,9 @@ class TestClippingBlockPerComponentInflation:
             return np.column_stack([x[:, 0], 0.1 * x[:, 1]])
 
         input_set = Box(np.zeros(2), np.ones(2))
-        result = verify(
+        result = conformal_reach(
             model=anisotropic_model,
-            input_set=input_set,
+            input_box=input_set,
             m=500,
             epsilon=0.05,
             surrogate='clipping_block',
@@ -486,9 +486,9 @@ class TestClippingBlockPerComponentInflation:
             return np.column_stack([x[:, 0], 0.1 * x[:, 1]])
 
         input_set = Box(np.zeros(2), np.ones(2))
-        result = verify(
+        result = conformal_reach(
             model=anisotropic_model,
-            input_set=input_set,
+            input_box=input_set,
             m=500,
             epsilon=0.05,
             surrogate='clipping_block',
@@ -528,9 +528,9 @@ class TestPCASoundness:
 
         input_set = Box(np.zeros(2), np.ones(2))
 
-        result = verify(
+        result = conformal_reach(
             model=lowrank_plus_noise,
-            input_set=input_set,
+            input_box=input_set,
             m=500,
             epsilon=0.05,
             surrogate='clipping_block',
@@ -566,9 +566,9 @@ class TestPCASoundness:
             return x @ basis + 0.2 * np.cos(5 * x[:, :1] + x[:, 1:])
 
         input_set = Box(np.zeros(2), np.ones(2))
-        result = verify(
+        result = conformal_reach(
             model=lowrank_plus_noise,
-            input_set=input_set,
+            input_box=input_set,
             m=500,
             epsilon=0.1,
             surrogate='naive',
@@ -586,12 +586,12 @@ class TestPCASoundness:
         assert float(np.mean(inside)) > 0.85
 
 
-class TestVerifyImports:
+class TestConformalReachImports:
     """Tests for module imports."""
 
     def test_import_verify_from_probabilistic(self):
         """Test that verify can be imported from n2v.probabilistic."""
-        from n2v.probabilistic import verify as v
+        from n2v.probabilistic import conformal_reach as v
         assert callable(v)
 
     def test_import_probabilistic_box_from_probabilistic(self):
@@ -605,7 +605,7 @@ class TestPCABoundsCorrectness:
 
     def test_pca_bounds_interval_arithmetic(self):
         """Verify bounds are computed with interval arithmetic, not naive transform."""
-        from n2v.probabilistic.verify import _inverse_transform_bounds
+        from n2v.probabilistic.conformal_reach import _inverse_transform_bounds
         from n2v.probabilistic.dimensionality.deflation_pca import DeflationPCA
 
         pca = DeflationPCA(n_components=2)
@@ -629,7 +629,7 @@ class TestPCABoundsCorrectness:
         assert ub[2] == pytest.approx(0.5)
 
     def test_pca_bounds_with_nonzero_mean(self):
-        from n2v.probabilistic.verify import _inverse_transform_bounds
+        from n2v.probabilistic.conformal_reach import _inverse_transform_bounds
         from n2v.probabilistic.dimensionality.deflation_pca import DeflationPCA
 
         pca = DeflationPCA(n_components=1)
@@ -649,7 +649,7 @@ class TestPCABoundsCorrectness:
 
     def test_pca_bounds_soundness_empirical(self):
         from n2v.probabilistic.dimensionality.deflation_pca import DeflationPCA
-        from n2v.probabilistic.verify import _inverse_transform_bounds
+        from n2v.probabilistic.conformal_reach import _inverse_transform_bounds
 
         np.random.seed(42)
         pca = DeflationPCA(n_components=3)

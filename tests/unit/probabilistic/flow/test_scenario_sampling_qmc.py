@@ -19,6 +19,8 @@ from n2v.probabilistic.flow.scenario_verify import (
 )
 from n2v.sets.halfspace import HalfSpace
 
+from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
+
 
 # -------- _qmc_sample_latents helper tests --------
 
@@ -92,28 +94,6 @@ def test_qmc_finite_no_inf():
 
 
 # -------- Dispatcher integration tests --------
-
-
-def _train_small_2d_flow(seed: int = 0):
-    """Tiny 2D flow trained on N(0, I_2), reused across integration tests."""
-    from n2v.probabilistic.flow.model import VelocityField
-    from n2v.probabilistic.flow.ode import FlowODE
-    from n2v.probabilistic.flow.train import train_flow
-
-    torch.manual_seed(seed)
-    vf = VelocityField(dim=2, hidden=64, n_layers=2,
-                       activation='silu', time_embed='concat')
-    rng = np.random.default_rng(seed)
-    y_train = torch.from_numpy(
-        rng.standard_normal((2000, 2)).astype(np.float32)
-    )
-    vf, _ = train_flow(
-        vf, y_train, n_epochs=200, batch_size=512, lr=1e-3,
-        coupling='sinkhorn', sinkhorn_reg='auto', sinkhorn_iters=5,
-        use_ema=True, standardize_outputs=False, time_sampling='uniform',
-    )
-    vf.eval()
-    return FlowODE(vf)
 
 
 @pytest.mark.slow

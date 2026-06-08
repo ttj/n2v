@@ -13,8 +13,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from typing import List, Tuple
-from n2v.sets import Star, ImageStar, ImageZono, Zono, Box, Hexatope, Octatope
+from typing import List
+from n2v.sets import Star, ImageStar, ImageZono, Box, Hexatope, Octatope
 
 
 def avgpool2d_star(
@@ -75,7 +75,7 @@ def _avgpool2d_imagestar_4d(layer: nn.AvgPool2d, input_star: ImageStar) -> Image
     # V is 4D: (H, W, C, nVar+1)
     V = pad_star.V
     h_in, w_in, c_in, n_cols = V.shape
-    n_pred = n_cols - 1
+    n_cols - 1
 
     # Get kernel size and stride (can be int, tuple, or list from onnx2torch)
     kernel_size = layer.kernel_size
@@ -230,8 +230,6 @@ def avgpool2d_box(layer: nn.AvgPool2d, input_boxes: List[Box]) -> List[Box]:
     output_boxes = []
     for box in input_boxes:
         # Get bounds
-        lb = box.lb
-        ub = box.ub
 
         # Assume box represents an image - need to know dimensions
         # For simplicity, we'll convert to ImageStar and back

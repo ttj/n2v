@@ -6,8 +6,8 @@ to the training outputs. Tighter bounds at the cost of more LP solves
 during calibration.
 
 Usage:
-    cd /home/sasakis/v/tools/n2v
-    /home/sasakis/miniconda3/envs/n2v/bin/python -u -m \\
+    cd /path/to/n2v
+    python -u -m \\
         examples.FlowConformal.experiments.baselines.run_hashemi_clipping \\
         --benchmark <name> --smoke
 """
@@ -39,7 +39,7 @@ def _process_factory(seed: int, *, m: int = _M, ell: int | None = None,
     _m = m
     _ell = ell
     _epsilon = epsilon
-    from n2v.probabilistic import verify
+    from n2v.probabilistic import conformal_reach
     from n2v.sets import Box
 
     def process_one(loader, name):
@@ -61,9 +61,9 @@ def _process_factory(seed: int, *, m: int = _M, ell: int | None = None,
                             np.asarray(ub).flatten())
             model_fn = torch_callable(net)
             try:
-                pbox = verify(
+                pbox = conformal_reach(
                     model=model_fn,
-                    input_set=input_set,
+                    input_box=input_set,
                     m=_m, ell=_ell,
                     epsilon=_epsilon,
                     surrogate='clipping_block',

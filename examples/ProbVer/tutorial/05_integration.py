@@ -15,7 +15,7 @@ import time
 
 import n2v
 from n2v.sets import Star, Box
-from n2v.probabilistic import verify
+from n2v.probabilistic import conformal_reach
 
 
 def main():
@@ -305,14 +305,14 @@ method='hybrid':
 """)
 
     # =========================================================================
-    # Part 8: Direct verify() Usage
+    # Part 8: Direct conformal_reach() Usage
     # =========================================================================
     print("\n" + "=" * 70)
-    print("PART 8: DIRECT verify() USAGE (For Black-Box Models)")
+    print("PART 8: DIRECT conformal_reach() USAGE (For Black-Box Models)")
     print("=" * 70)
 
     print("""
-For maximum flexibility, use verify() directly with any callable:
+For maximum flexibility, use conformal_reach() directly with any callable:
 """)
 
     # Example with raw callable
@@ -321,14 +321,14 @@ For maximum flexibility, use verify() directly with any callable:
         with torch.no_grad():
             return model(torch.tensor(x, dtype=torch.float32)).numpy()
 
-    print("Direct verify() with any callable:")
+    print("Direct conformal_reach() with any callable:")
     print("```python")
-    print("from n2v.probabilistic import verify")
+    print("from n2v.probabilistic import conformal_reach")
     print("from n2v.sets import Box")
     print("")
-    print("result = verify(")
+    print("result = conformal_reach(")
     print("    model=my_black_box,  # Any callable: np.array -> np.array")
-    print("    input_set=Box(lb, ub),")
+    print("    input_box=Box(lb, ub),")
     print("    m=1000,")
     print("    epsilon=0.01,")
     print("    surrogate='clipping_block'")
@@ -336,9 +336,9 @@ For maximum flexibility, use verify() directly with any callable:
     print("```")
 
     # Actually run it
-    direct_result = verify(
+    direct_result = conformal_reach(
         model=my_black_box,
-        input_set=input_box,
+        input_box=input_box,
         m=500,
         epsilon=0.05,
         surrogate='clipping_block',
@@ -347,7 +347,7 @@ For maximum flexibility, use verify() directly with any callable:
         verbose=False
     )
 
-    print(f"\nDirect verify() result:")
+    print(f"\nDirect conformal_reach() result:")
     print(f"  Bounds: [{direct_result.lb.flatten()}, {direct_result.ub.flatten()}]")
     print(f"  Coverage: {direct_result.coverage}")
     print(f"  Confidence: {direct_result.confidence:.6f}")
@@ -374,7 +374,7 @@ n2v Integration Options:
    - Automatic fallback
    - Best when complexity is unknown
 
-5. verify(model, input_set, ...) - Direct call
+5. conformal_reach(model, input_set, ...) - Direct call
    - Maximum flexibility
    - Works with any callable model
 """)

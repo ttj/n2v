@@ -22,9 +22,7 @@ from n2v.sets.halfspace import HalfSpace
 def test_single_group_spec_unsat_iff_group_disjoint():
     """A spec with one group reduces to layer 2 on that group."""
     from n2v.probabilistic.flow.scenario_verify import certify_spec_disjoint
-    from tests.unit.probabilistic.flow.test_certify_halfspace_disjoint import (
-        _train_small_2d_flow,
-    )
+    from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
     flow = _train_small_2d_flow(seed=0)
     groups = [[HalfSpace(np.array([[1.0, 0.0]]), np.array([[-100.0]]))]]
     result = certify_spec_disjoint(
@@ -38,9 +36,7 @@ def test_single_group_spec_unsat_iff_group_disjoint():
 def test_two_group_spec_unsat_if_any_group_disjoint():
     """Group 0 reachable, group 1 unreachable. Spec is UNSAT (one group suffices)."""
     from n2v.probabilistic.flow.scenario_verify import certify_spec_disjoint
-    from tests.unit.probabilistic.flow.test_certify_halfspace_disjoint import (
-        _train_small_2d_flow,
-    )
+    from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
     flow = _train_small_2d_flow(seed=0)
     groups = [
         [HalfSpace(np.array([[1.0, 0.0]]), np.array([[100.0]]))],   # reachable
@@ -57,9 +53,7 @@ def test_two_group_spec_unsat_if_any_group_disjoint():
 def test_no_group_disjoint_means_not_unsat():
     """Every group reachable → can't certify UNSAT."""
     from n2v.probabilistic.flow.scenario_verify import certify_spec_disjoint
-    from tests.unit.probabilistic.flow.test_certify_halfspace_disjoint import (
-        _train_small_2d_flow,
-    )
+    from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
     flow = _train_small_2d_flow(seed=0)
     groups = [
         [HalfSpace(np.array([[1.0, 0.0]]), np.array([[100.0]]))],   # reachable
@@ -82,9 +76,7 @@ def test_spec_epsilon_is_bonferroni_across_executed_hs():
     run. Group 1's HalfSpace never executes. Total: 2 executed tests.
     """
     from n2v.probabilistic.flow.scenario_verify import certify_spec_disjoint
-    from tests.unit.probabilistic.flow.test_certify_halfspace_disjoint import (
-        _train_small_2d_flow,
-    )
+    from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
     flow = _train_small_2d_flow(seed=0)
     groups = [
         [HalfSpace(np.array([[1.0, 0.0]]), np.array([[-100.0]])),
@@ -104,9 +96,7 @@ def test_spec_early_exit_on_first_disjoint_group():
     without running later groups. per_group_results may be shorter
     than len(spec_groups)."""
     from n2v.probabilistic.flow.scenario_verify import certify_spec_disjoint
-    from tests.unit.probabilistic.flow.test_certify_halfspace_disjoint import (
-        _train_small_2d_flow,
-    )
+    from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
     flow = _train_small_2d_flow(seed=0)
     groups = [
         [HalfSpace(np.array([[1.0, 0.0]]), np.array([[-100.0]]))],  # disjoint (UNSAT witness)
@@ -127,9 +117,7 @@ def test_spec_early_exit_on_first_disjoint_group():
 def test_empty_spec_raises():
     """An empty spec (no groups) is invalid."""
     from n2v.probabilistic.flow.scenario_verify import certify_spec_disjoint
-    from tests.unit.probabilistic.flow.test_certify_halfspace_disjoint import (
-        _train_small_2d_flow,
-    )
+    from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
     flow = _train_small_2d_flow(seed=0)
     with pytest.raises(ValueError):
         certify_spec_disjoint(

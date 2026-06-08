@@ -19,15 +19,15 @@ PGD/APGD ensemble).
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
+    cd /path/to/n2v
 
     # Smoke (1 instance):
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    python -m \\
         examples.FlowConformal.experiments.exp2_prob_scale.exp2_run_ours \\
         --benchmark vit_2023 --smoke
 
     # Full sweep (N=100):
-    nohup /home/sasakis/miniconda3/envs/n2v/bin/python -u -m \\
+    nohup python -u -m \\
         examples.FlowConformal.experiments.exp2_prob_scale.exp2_run_ours \\
         --benchmark cifar100_2024 \\
         > examples/FlowConformal/experiments/exp2_prob_scale/outputs/exp2_cifar100_2024_ours.log 2>&1 &
@@ -46,13 +46,19 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from examples.FlowConformal.experiments._runner_utils import (
+    aggregate_box_verdicts,
+    append_csv_row_with_defaults,
+)
 from examples.FlowConformal.experiments.exp2_prob_scale._benchmarks import (
     EXP2_BENCHMARKS,
     PER_BENCHMARK_CONFIG,
     list_instances,
     load_one_instance,
 )
-from n2v.probabilistic.verify_flow import run_verification_pipeline
+from examples.FlowConformal.experiments._shared_flow_runner import (
+    run_flow_pipeline,
+)
 
 _SEED = 47
 _DEFAULT_N_INSTANCES = 100
@@ -71,24 +77,15 @@ _FIELDS = [
 def _write_timeout_row(out_csv: Path, benchmark: str, name: str,
                        timeout_s: int) -> None:
     """Append a single TIMEOUT row when killed by outer shell timeout."""
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader()
-            f.flush()
-        out_row = {_f: '' for _f in _FIELDS}
-        out_row.update({
-            'benchmark': benchmark,
-            'instance': name,
-            'verdict': 'TIMEOUT',
-            'wall_s': '',
-            'timeout_s': timeout_s,
-            'error': 'shell timeout (run_cell.sh exit 124)',
-            'timestamp': _now_iso(),
-        })
-        writer.writerow(out_row)
-        f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'benchmark': benchmark,
+        'instance': name,
+        'verdict': 'TIMEOUT',
+        'wall_s': '',
+        'timeout_s': timeout_s,
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 def _now_iso() -> str:
@@ -117,10 +114,10 @@ def _run_one_instance(benchmark: str, loader, cfg: dict, *,
                 'error': f'load {type(e).__name__}: {e}'}
 
     # Move network to GPU for sample-generation forward passes
-    # (n_train + m + n_test = 20K passes per instance). Patched _forward
-    # in verify_flow pushes inputs to the network's device. If a network
-    # has ops that fail on CUDA, the pipeline's per-instance try/except
-    # surfaces it as an ERROR row.
+    # (n_train + m + n_test = 20K passes per instance). The flow
+    # pipeline's patched ``_forward`` pushes inputs to the network's
+    # device. If a network has ops that fail on CUDA, the pipeline's
+    # per-instance try/except surfaces it as an ERROR row.
     if torch.cuda.is_available():
         try:
             network = network.cuda()
@@ -128,33 +125,14 @@ def _run_one_instance(benchmark: str, loader, cfg: dict, *,
             return {'verdict': 'ERROR',
                     'error': f'gpu_move {type(e).__name__}: {e}'}
 
-    pipeline_kwargs = dict(
-        flow_config=cfg['flow_config'],
-        n_train=cfg['n_train'],
-        flow_epochs=cfg['flow_epochs'],
-        scenario_n_samples=cfg['scenario_n_samples'],
-        scenario_beta=0.001,
-        verification_method=cfg['verification_method'],
-        amls_max_levels=cfg['amls_max_levels'],
-        use_falsifier=cfg.get('use_falsifier', False),
-        sat_backend=cfg.get('falsifier_method', 'apgd'),
-        sat_backend_kwargs={
-            'n_restarts': cfg.get('falsifier_n_restarts', 10),
-            'n_steps': cfg.get('falsifier_n_steps', 100),
-        },
-    )
-
     box_results = []
     for box_idx, (lb, ub) in enumerate(boxes):
         try:
-            r = run_verification_pipeline(
-                network=network,
-                input_lb=np.asarray(lb).flatten(),
-                input_ub=np.asarray(ub).flatten(),
-                spec=spec,
-                alpha=cfg['alpha'],
-                seed=seed,
-                **pipeline_kwargs,
+            r = run_flow_pipeline(
+                network,
+                np.asarray(lb).flatten(),
+                np.asarray(ub).flatten(),
+                spec, cfg, seed=seed,
             )
         except NotImplementedError as e:
             return {'verdict': 'SKIPPED',
@@ -166,21 +144,7 @@ def _run_one_instance(benchmark: str, loader, cfg: dict, *,
         if r['verdict'] == 'SAT':
             break
 
-    verdicts = [r['verdict'] for r in box_results]
-    if 'SAT' in verdicts:
-        result = next(r for r in box_results if r['verdict'] == 'SAT')
-    elif all(v == 'UNSAT' for v in verdicts):
-        result = box_results[0]
-        if len(box_results) > 1:
-            eps_sum = sum(
-                (r.get('epsilon_total') or 0.0) for r in box_results)
-            delta_min = min(
-                (r.get('delta_total') or 1.0) for r in box_results)
-            result = dict(result)
-            result['epsilon_total'] = eps_sum
-            result['delta_total'] = delta_min
-    else:
-        result = next(r for r in box_results if r['verdict'] == 'UNKNOWN')
+    result = aggregate_box_verdicts(box_results)
 
     cex_x, cex_y = '', ''
     if result.get('counterexample') is not None:

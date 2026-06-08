@@ -13,8 +13,8 @@ opted to try ProbStar on Exp 1 anyway.
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    cd /path/to/n2v
+    python -m \\
         examples.FlowConformal.experiments.exp1_vnncomp_subset.exp1_run_probstar \\
         --benchmark acasxu_2023 --smoke
 """
@@ -29,6 +29,9 @@ from pathlib import Path
 
 from examples.FlowConformal.experiments._external_verifiers import (
     run_probstar,
+)
+from examples.FlowConformal.experiments._runner_utils import (
+    append_csv_row_with_defaults,
 )
 from examples.FlowConformal.experiments.exp1_vnncomp_subset._benchmarks import (
     BENCHMARK_ROOTS,
@@ -74,23 +77,14 @@ def _resolve_paths(benchmark: str, onnx_rel: str, vnn_rel: str
 def _write_timeout_row(out_csv: Path, benchmark: str,
                        onnx_rel: str, vnn_rel: str,
                        timeout_s: int) -> None:
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader()
-            f.flush()
-        out_row = {_f: '' for _f in _FIELDS}
-        out_row.update({
-            'benchmark': benchmark,
-            'onnx_file': Path(onnx_rel).name,
-            'vnnlib_file': Path(vnn_rel).name,
-            'verdict': 'TIMEOUT', 'vnncomp_timeout_s': timeout_s,
-            'error': 'shell timeout (run_cell.sh exit 124)',
-            'timestamp': _now_iso(),
-        })
-        writer.writerow(out_row)
-        f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'benchmark': benchmark,
+        'onnx_file': Path(onnx_rel).name,
+        'vnnlib_file': Path(vnn_rel).name,
+        'verdict': 'TIMEOUT', 'vnncomp_timeout_s': timeout_s,
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 def main():

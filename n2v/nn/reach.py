@@ -9,7 +9,9 @@ and ONNX GraphModules.
 import logging
 import operator
 import time
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+import warnings
+from dataclasses import dataclass
+from typing import Any, Dict, List, Literal, Optional, Tuple, Type, Union
 
 import numpy as np
 import torch
@@ -24,13 +26,166 @@ from n2v.nn.layer_ops.dispatcher import reach_layer
 from n2v.nn.layer_ops.linear_reach import linear_hexatope, linear_octatope
 from n2v.utils.model_preprocessing import fuse_batchnorm, has_batchnorm
 from n2v.utils.bounds_precomputation import compute_intermediate_bounds
-from n2v.probabilistic import verify
+from n2v.probabilistic.conformal_reach import ConformalReachConfig, conformal_reach
+from n2v.probabilistic.flow.reach import FlowReachConfig, flow_reach
 from onnx2torch.node_converters.reshape import OnnxReshape
 from onnx2torch.node_converters.concat import OnnxConcat
 from onnx2torch.node_converters.slice import OnnxSlice, OnnxSliceV9
 from onnx2torch.node_converters.split import OnnxSplit, OnnxSplit13
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Configuration dataclasses used by :func:`reach_pytorch_model` to bundle
+# per-method kwargs (validated via :func:`_validate_reach_config`).
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class ReachConfig:
+    """Configuration for sound reachability via :meth:`NeuralNetwork.reach`.
+
+    Used with sound methods ``'exact'`` (Star-only) and ``'approx'``
+    (Star, Box, Zono, Hexatope, Octatope). Probabilistic methods use
+    their own config classes: ``'flow_matching'`` -> ``FlowReachConfig``
+    and ``'conformal'`` -> ``ConformalReachConfig``.
+
+    Attributes:
+        method: ``'exact'`` for exact star reachability with splitting
+            (sound, complete on piecewise-linear nets) or ``'approx'``
+            for over-approximate relaxation reachability (sound, sound-
+            but-incomplete). Default ``'exact'``.
+        lp_solver: LP solver identifier passed to the underlying reach
+            kernels. ``'default'`` defers to the kernel's choice.
+        verbose: ``'display'`` to print progress, ``None`` to stay quiet.
+        parallel: Enable parallel Star processing (only relevant for
+            ``method='exact'`` on Star sets).
+        n_workers: Number of parallel workers when ``parallel=True``.
+            Must be >= 1.
+        relax_factor: Relaxation factor in ``[0, 1]`` for ``method='approx'``;
+            ``0`` is exact (no relaxation), ``1`` is maximal relaxation.
+            Default ``0.5``. Ignored for ``method='exact'`` (a warning is
+            emitted if set to a non-default with ``method='exact'``).
+        relax_method: Relaxation strategy for ``method='approx'``. Default
+            ``'standard'``. Ignored for ``method='exact'``.
+
+    Example:
+        >>> # Pass directly to .reach():
+        >>> output_stars = net.reach(input_star, config=ReachConfig(
+        ...     method='exact', parallel=True, n_workers=8,
+        ... ))
+        >>> # Or equivalently via bare kwargs (validator builds the config):
+        >>> output_stars = net.reach(input_star, method='exact',
+        ...                          parallel=True, n_workers=8)
+    """
+
+    method: Literal['exact', 'approx'] = 'exact'
+    lp_solver: str = 'default'
+    verbose: Optional[str] = None
+    parallel: bool = False
+    n_workers: int = 1
+    relax_factor: float = 0.5
+    relax_method: str = 'standard'
+
+    def __post_init__(self):
+        if self.method not in ('exact', 'approx'):
+            raise ValueError(
+                f"ReachConfig.method must be 'exact' or 'approx', "
+                f"got {self.method!r}"
+            )
+        if self.method == 'exact' and (
+            self.relax_factor != 0.5 or self.relax_method != 'standard'
+        ):
+            warnings.warn(
+                "ReachConfig.relax_factor / relax_method are ignored for "
+                "method='exact'",
+                stacklevel=2,
+            )
+        if self.n_workers < 1:
+            raise ValueError(
+                f"ReachConfig.n_workers must be >= 1, got {self.n_workers}"
+            )
+        if not 0.0 <= self.relax_factor <= 1.0:
+            raise ValueError(
+                f"ReachConfig.relax_factor must be in [0, 1], "
+                f"got {self.relax_factor}"
+            )
+
+
+def _validate_reach_config(method, config, **kwargs):
+    """Reconcile ``config=`` and bare kwargs for ``.reach()`` dispatch.
+
+    The dispatch surface allows two styles equivalently:
+
+      * ``net.reach(box, method='exact', parallel=True, n_workers=8)``
+      * ``net.reach(box, config=ReachConfig(method='exact', parallel=True,
+                                            n_workers=8))``
+
+    This helper produces a validated config from either form; the two
+    forms are mutually exclusive (passing both raises ``TypeError``).
+
+    Args:
+        method: The ``method=`` argument to ``.reach()``.
+        config: An optional dataclass instance — ``ReachConfig`` for
+            sound methods (``'exact'``, ``'approx'``); ``FlowReachConfig``
+            for ``'flow_matching'``.
+        **kwargs: Method-specific keyword arguments. Empty when the
+            caller uses ``config=``.
+
+    Returns:
+        A validated config instance of the type appropriate for ``method``.
+
+    Raises:
+        TypeError: If both ``config=`` and ``kwargs`` are passed.
+        TypeError: If ``config``'s type doesn't match ``method``.
+        TypeError: If ``config.method`` disagrees with the ``method`` arg.
+        TypeError: If kwargs contain unknown keys for the chosen config.
+        ValueError: If ``method`` is not a known reach method.
+    """
+    if config is not None and kwargs:
+        raise TypeError(
+            "pass either config= or method-specific kwargs, not both "
+            f"(got config={type(config).__name__} and kwargs={list(kwargs)})"
+        )
+
+    if method in ('exact', 'approx'):
+        expected_cls = ReachConfig
+    elif method == 'flow_matching':
+        expected_cls = FlowReachConfig
+    elif method == 'conformal':
+        expected_cls = ConformalReachConfig
+    else:
+        raise ValueError(
+            f"unknown reach method: {method!r}. "
+            f"Known: 'exact', 'approx', 'flow_matching', 'conformal'."
+        )
+
+    if config is None:
+        # Build from kwargs. Unknown keys raise ``TypeError`` via the
+        # dataclass constructor — desirable: typo'd kwargs fail loudly.
+        if 'method' in expected_cls.__dataclass_fields__:
+            kwargs.setdefault('method', method)
+            if kwargs['method'] != method:
+                raise TypeError(
+                    f"method in kwargs ({kwargs['method']!r}) disagrees "
+                    f"with method= argument ({method!r})"
+                )
+        return expected_cls(**kwargs)
+
+    if not isinstance(config, expected_cls):
+        raise TypeError(
+            f"method={method!r} expects {expected_cls.__name__}, "
+            f"got {type(config).__name__}"
+        )
+
+    if hasattr(config, 'method') and config.method != method:
+        raise TypeError(
+            f"config.method ({config.method!r}) disagrees with "
+            f"method= argument ({method!r})"
+        )
+
+    return config
 
 # Maps torch functional ops to their nn.Module equivalents.
 #   Used by _function_node_to_module to convert call_function
@@ -97,6 +252,55 @@ def reach_pytorch_model(
 
     if method == 'hybrid':
         return _reach_hybrid(model, input_set, **kwargs)
+
+    if method == 'flow_matching':
+        # Flow-matching probabilistic reach: trains a flow on outputs
+        # sampled from the input box, calibrates a conformal threshold,
+        # and returns a ProbabilisticSet. ``flow_reach`` accepts both
+        # ``nn.Module`` and numpy-callable inputs; we pass the module
+        # directly so its forward pass stays device-aware (preserves
+        # GPU acceleration where applicable).
+        if not isinstance(input_set, Box):
+            raise TypeError(
+                f"method='flow_matching' requires Box input, "
+                f"got {type(input_set).__name__}"
+            )
+        config = kwargs.pop('config', None)
+        config = _validate_reach_config(method, config, **kwargs)
+        return flow_reach(model, input_set, config)
+
+    if method == 'conformal':
+        # Surrogate-based conformal reach. ``conformal_reach`` accepts
+        # both ``nn.Module`` and numpy-callable inputs; we pass the
+        # module directly so its internal device-aware wrapping kicks in.
+        if not isinstance(input_set, Box):
+            raise TypeError(
+                f"method='conformal' requires Box input, "
+                f"got {type(input_set).__name__}"
+            )
+        config = kwargs.pop('config', None)
+        config = _validate_reach_config(method, config, **kwargs)
+        return conformal_reach(model, input_set, config)
+
+    # Sound dispatch ('exact' / 'approx'): if the caller passed
+    # ``config=ReachConfig(...)`` (the documented form), validate it and
+    # unpack its fields back into ``kwargs`` so the downstream
+    # ``_handle_graphmodule`` -> ``reach_layer`` chain consumes them as
+    # before. Without this branch the ``config=`` form silently no-op'd
+    # on sound methods while the documented public API claimed it worked.
+    if 'config' in kwargs:
+        config = kwargs.pop('config')
+        # Pass remaining kwargs so ``_validate_reach_config`` enforces
+        # the documented "config XOR kwargs" rule.
+        config = _validate_reach_config(method, config, **kwargs)
+        kwargs = {
+            'lp_solver': config.lp_solver,
+            'verbose': config.verbose,
+            'parallel': config.parallel,
+            'n_workers': config.n_workers,
+            'relax_factor': config.relax_factor,
+            'relax_method': config.relax_method,
+        }
 
     # Auto-fuse BatchNorm layers if present
     if has_batchnorm(model):
@@ -597,7 +801,13 @@ def _reshape_box(box: 'Box', spatial_shape: Tuple[int, ...]) -> 'Box':
     return box
 
 
-def _handle_onnx_binary_op(module: Any, node: Any, node_values: Dict[str, List], graph_module: fx.GraphModule, set_type: Type) -> Optional[List]:
+def _handle_onnx_binary_op(
+    module: Any,
+    node: Any,
+    node_values: Dict[str, List],
+    graph_module: fx.GraphModule,
+    set_type: Type,
+) -> Optional[List]:
     """Handle ONNX binary math operations (Add, Sub, etc.)."""
     input_nodes = node.args
     if len(input_nodes) != 2:
@@ -619,8 +829,8 @@ def _handle_onnx_binary_op(module: Any, node: Any, node_values: Dict[str, List],
             return _mul_sets(sets_a, sets_b)
         elif op_name == '_onnx_div':
             raise NotImplementedError(
-                f"Element-wise division of two computed sets is not supported. "
-                f"Only Div by constant is implemented."
+                "Element-wise division of two computed sets is not supported. "
+                "Only Div by constant is implemented."
             )
 
         return _add_sets(sets_a, sets_b, op_name)
@@ -721,7 +931,13 @@ def _handle_onnx_binary_op(module: Any, node: Any, node_values: Dict[str, List],
         )
 
 
-def _handle_onnx_matmul(module: Any, node: Any, node_values: Dict[str, List], graph_module: fx.GraphModule, set_type: Type) -> Optional[List]:
+def _handle_onnx_matmul(
+    module: Any,
+    node: Any,
+    node_values: Dict[str, List],
+    graph_module: fx.GraphModule,
+    set_type: Type,
+) -> Optional[List]:
     """Handle ONNX MatMul operations."""
     input_nodes = node.args
     if len(input_nodes) != 2:
@@ -1537,7 +1753,12 @@ def _slice_set(s: Any, slices_by_axis: Dict[int, slice]) -> Any:
         )
 
 
-def _handle_onnx_slice(module: Any, node: Any, node_values: Dict[str, List], graph_module: fx.GraphModule) -> Optional[List]:
+def _handle_onnx_slice(
+    module: Any,
+    node: Any,
+    node_values: Dict[str, List],
+    graph_module: fx.GraphModule,
+) -> Optional[List]:
     """
     Handle ONNX Slice operations.
 
@@ -1727,7 +1948,12 @@ def _split_set(s: Any, split_sizes: List[int], axis: int) -> List:
     return chunks
 
 
-def _handle_onnx_split(module: Any, node: Any, node_values: Dict[str, List], graph_module: fx.GraphModule) -> Optional[List[List]]:
+def _handle_onnx_split(
+    module: Any,
+    node: Any,
+    node_values: Dict[str, List],
+    graph_module: fx.GraphModule,
+) -> Optional[List[List]]:
     """
     Handle ONNX Split operations.
 
@@ -1857,10 +2083,13 @@ def _reach_probabilistic(model: nn.Module, input_set: Any, **kwargs: Any) -> Lis
             output = model(x_tensor)
             return output.numpy()
 
-    # Run probabilistic verification
-    result = verify(
-        model=model_fn,
-        input_set=box,
+    # Run probabilistic verification. ``method='probabilistic'`` is the
+    # legacy alias; ``conformal_reach`` is the renamed primary entry. The
+    # set-to-Box conversion above (and image-shape handling) are
+    # specific to this dispatch path so we keep it as a thin wrapper.
+    result = conformal_reach(
+        model_fn,
+        box,
         m=kwargs.get('m', 8000),
         ell=kwargs.get('ell', None),
         epsilon=kwargs.get('epsilon', 0.001),
@@ -1869,7 +2098,7 @@ def _reach_probabilistic(model: nn.Module, input_set: Any, **kwargs: Any) -> Lis
         pca_components=kwargs.get('pca_components', None),
         batch_size=kwargs.get('batch_size', 100),
         seed=kwargs.get('seed', None),
-        verbose=kwargs.get('verbose', False)
+        verbose=kwargs.get('verbose', False),
     )
 
     return [result]

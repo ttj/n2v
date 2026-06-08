@@ -17,7 +17,9 @@ predicted reach set ``R_q = {y : score(y) <= q}``:
   the union-bound sum of ellipsoid volumes (conservative upper
   bound; documented as such).
 * ``flow`` — current default. Delegates to
-  :func:`n2v.probabilistic.verify_flow.run_verification_pipeline`.
+  :func:`examples.FlowConformal.experiments._shared_flow_runner.run_flow_pipeline`
+  (which wraps :func:`n2v.probabilistic.flow_reach` and
+  :func:`n2v.utils.verify_specification.verify_specification`).
 
 All four score families produce comparable artifacts: closed-form (or
 union-bound) volume, exact disjointness on Lipschitz-friendly specs,
@@ -467,41 +469,37 @@ def run_score_pipeline(
     ``volume_ratio``, ``cex_x``, ``cex_y``. May include score-specific
     extras under ``score_extras``.
 
-    ``flow`` delegates to :func:`run_verification_pipeline` (the
-    bounded-AMLS path), so the existing ``--score flow`` smoke output
-    is preserved.
+    ``flow`` delegates to the shared three-stage runner
+    (:func:`run_flow_pipeline`) on the bounded-AMLS path, so the
+    existing ``--score flow`` smoke output is preserved.
     """
     if score == 'flow':
-        # Delegate to the canonical pipeline; format the result back
-        # into our schema.
-        from n2v.probabilistic.verify_flow import run_verification_pipeline
-        r = run_verification_pipeline(
-            network=network,
-            input_lb=input_lb,
-            input_ub=input_ub,
-            spec=spec,
+        # Delegate to the shared three-stage runner (new public API).
+        from examples.FlowConformal.experiments._shared_flow_runner import (
+            run_flow_pipeline,
+        )
+        cfg = dict(
             alpha=alpha,
+            flow_config=flow_config,
             n_train=n_train,
             flow_epochs=flow_epochs,
-            flow_config=flow_config,
             scenario_n_samples=scenario_n_samples,
-            scenario_beta=scenario_beta,
             verification_method='amls_bounded',
             amls_max_levels=30,
-            seed=seed,
+            use_falsifier=False,
         )
-        # MC-estimate the calibrated reach-set volume so the row carries
-        # the same volume_estimate/volume_ratio comparison the closed-form
-        # scores produce. Skip if the pipeline didn't expose a score_fn /
-        # threshold (verdict='SAT' from a falsifier hit, or method change).
+        r = run_flow_pipeline(
+            network,
+            np.asarray(input_lb), np.asarray(input_ub),
+            spec, cfg, seed=seed,
+        )
+        # MC-estimate the calibrated reach-set volume directly from the
+        # ProbabilisticSet returned by the shared runner (which exposes
+        # ``prob_set`` for downstream consumers like this volume path).
         volume_estimate = float('nan')
-        score_fn = r.get('score_fn')
-        threshold = r.get('q')
-        if (score_fn is not None
-                and threshold is not None
-                and r['verdict'] in ('UNSAT', 'UNKNOWN')):
+        pset = r.get('prob_set')
+        if pset is not None and r['verdict'] in ('UNSAT', 'UNKNOWN'):
             try:
-                from n2v.probabilistic.flow.sets import ProbabilisticSet
                 from n2v.probabilistic.flow.sampling import sample_box
                 lb_t = torch.as_tensor(input_lb, dtype=torch.float32)
                 ub_t = torch.as_tensor(input_ub, dtype=torch.float32)
@@ -513,11 +511,6 @@ def run_score_pipeline(
                 y_hi = y.max(dim=0).values
                 pad = 0.05 * (y_hi - y_lo).clamp(min=1e-6)
                 bbox = (y_lo - pad, y_hi + pad)
-                pset = ProbabilisticSet(
-                    score_fn=score_fn, threshold=threshold,
-                    m=volume_m, ell=volume_ell, epsilon=alpha,
-                    dim=int(np.asarray(input_lb).size),
-                )
                 vol, _se = pset.estimate_volume(
                     n_samples=volume_n_samples, bounding_box=bbox,
                 )

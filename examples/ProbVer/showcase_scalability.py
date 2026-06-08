@@ -17,7 +17,7 @@ import os
 
 import n2v
 from n2v.sets import Star, Box
-from n2v.probabilistic import verify
+from n2v.probabilistic import conformal_reach
 
 
 # Output directory for visualizations
@@ -139,9 +139,9 @@ We use a small network where exact is tractable to show ground truth.
     # --- Probabilistic (Naive Surrogate) ---
     print("\n--- Probabilistic Reachability (Naive Surrogate) ---")
     start = time.time()
-    prob_naive_result = verify(
+    prob_naive_result = conformal_reach(
         model=model_fn,
-        input_set=input_box,
+        input_box=input_box,
         m=1000,
         epsilon=0.01,  # 99% coverage
         surrogate='naive',
@@ -161,9 +161,9 @@ We use a small network where exact is tractable to show ground truth.
     # --- Probabilistic (Clipping Block Surrogate) ---
     print("\n--- Probabilistic Reachability (Clipping Block Surrogate) ---")
     start = time.time()
-    prob_clip_result = verify(
+    prob_clip_result = conformal_reach(
         model=model_fn,
-        input_set=input_box,
+        input_box=input_box,
         m=500,
         epsilon=0.01,  # 99% coverage
         surrogate='clipping_block',

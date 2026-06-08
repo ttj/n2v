@@ -2,8 +2,8 @@
 
 Runnable entry points for the flow-matching probabilistic-reachability
 project. The library code (flow training, calibration, AMLS / scenario
-/ IS / Langevin spec verification, falsifier ensemble) lives in
-`n2v/probabilistic/flow/`, `n2v/probabilistic/verify_flow.py`, and
+/ IS spec verification, falsifier ensemble) lives in
+`n2v/probabilistic/flow/`, `n2v/utils/verify_specification.py`, and
 `n2v/utils/falsify.py`. This directory holds the demos, benchmarks,
 paper-experiment scripts, and the paper-side figure / table
 generators.
@@ -15,26 +15,59 @@ schema produced by this codebase: [`CSV_SCHEMAS.md`](CSV_SCHEMAS.md).
 
 ## Public library API
 
-```python
-from n2v.probabilistic import verify_flow
+After the post-NeurIPS cleanup refactor the public surface is three
+composable steps: ``falsify`` (optional, pre-reach SAT search), then
+either the OO ``NeuralNetwork.reach(method='flow_matching')`` or the
+model-agnostic free function ``flow_reach``, then
+``verify_specification``. Both produce identical numbers on the same
+seeds.
 
-result = verify_flow(
-    network=net, input_lb=lb, input_ub=ub, spec=spec,
-    alpha=0.001, m=8000, ell=7999,
-    scenario_n_samples=2000, scenario_beta=0.001,
-    flow_config='base',
-    verification_method='amls_bounded',  # production default
-    use_falsifier=False,                 # opt-in Stage 1 falsifier
-    seed=0,
+```python
+from n2v.sets import Box
+from n2v.nn import NeuralNetwork
+from n2v.probabilistic import FlowReachConfig
+from n2v.utils.falsify import falsify
+from n2v.utils.verify_specification import (
+    ProbVerifyConfig,
+    verify_specification,
 )
+
+# Optional Stage 1: fast counterexample search.
+sat_int, cex = falsify(model, lb=lb, ub=ub, property=spec, method='apgd',
+                       seed=0, n_restarts=10, n_steps=100)
+if sat_int == 0:
+    # ... handle SAT (counterexample found)
+    pass
+
+# Stage 2: flow-matching probabilistic reach.
+net = NeuralNetwork(model)
+prob_set = net.reach(
+    Box(lb, ub), method='flow_matching',
+    config=FlowReachConfig(
+        epsilon=0.001, m=8000, ell=7999,
+        n_train=10_000, flow_epochs=5000, flow_config='base',
+        seed=0,
+    ),
+)
+
+# Stage 3: spec verification (UNSAT certification).
+result = verify_specification(
+    prob_set, spec,
+    config=ProbVerifyConfig(
+        method='amls_bounded',           # paper-production default
+        n_samples=2000, beta=0.001,
+        amls_bounded_eps_2_target=0.001,
+        seed=0,
+    ),
+)
+print(result.verdict, result.epsilon_total, result.q)
 ```
 
-`use_falsifier=False` is the library default: the pipeline runs flow
-+ conformal + spec verification only and returns UNSAT or UNKNOWN.
-With `use_falsifier=True` the pipeline first runs an ensemble of
-random + PGD + APGD attacks; if any restart finds an `x` with
-`f(x) ∈ Unsafe`, the verdict is SAT with that concrete
-counterexample.
+The same model-agnostic dispatch is also available as a free function
+``n2v.probabilistic.flow_reach(model, box, config)``, which accepts any
+callable ``y = model(x)`` (PyTorch ``nn.Module``, TensorFlow, JAX, ONNX
+session, …). See ``conformal_reach`` for the surrogate-based variant
+(returns a ``ProbabilisticBox``).
 
 ## Directory layout
 
@@ -46,13 +79,11 @@ FlowConformal/
 ├── CSV_SCHEMAS.md                  every CSV column documented
 │
 ├── benchmarks/                     small benchmarks + the ACAS Xu loader
-│   ├── _common.py                  back-compat wrapper around verify_flow
+│   ├── _common.py                  legacy-shaped result-dict shim around the new 3-stage API
 │   ├── _common_analytical.py       analytical-ground-truth helpers
-│   ├── _spec.py                    spec helpers shared with experiments/
-│   ├── test_acasxu_single.py       single-instance ACAS Xu runner
-│   ├── test_banana.py / test_three_blob_3d.py   demo benchmarks
-│   ├── test_rotated_linear.py / test_rotated_linear_production.py
-│   └── test_identity_network.py    cube sanity check
+│   ├── demo_acasxu_single.py       single-instance ACAS Xu runner
+│   ├── demo_rotated_linear.py / demo_rotated_linear_production.py
+│   └── demo_identity_network.py    cube sanity check
 │
 ├── experiments/                    paper-quality runs
 │   ├── README.md                   design doc + execution order
@@ -120,18 +151,20 @@ FlowConformal/
 
 ## How to run
 
-All commands assume the project's conda env:
+All commands assume the n2v conda env is active
+(`source /isis/home/sasakis/miniconda3/bin/activate n2v`); with it active `$CONDA`
+is just the env's `python`:
 
 ```bash
-CONDA=/home/sasakis/miniconda3/envs/n2v/bin/python
+CONDA=python
 ```
 
 A single benchmark (~3 min):
 
 ```bash
-$CONDA -m examples.FlowConformal.benchmarks.test_banana
-$CONDA -m examples.FlowConformal.benchmarks.test_three_blob_3d
-$CONDA -m examples.FlowConformal.benchmarks.test_acasxu_single
+$CONDA -m examples.FlowConformal.benchmarks.demo_identity_network
+$CONDA -m examples.FlowConformal.benchmarks.demo_rotated_linear
+$CONDA -m examples.FlowConformal.benchmarks.demo_acasxu_single
 ```
 
 A paper experiment (single benchmark smoke):
@@ -177,12 +210,18 @@ $CONDA -m examples.FlowConformal.paper.figures.fig5_exp3_volume_comparison
 ## Test suite
 
 ```bash
-# Fast subset (~1 min):
+# Flow subset, fast tier (~1 min):
 $CONDA -m pytest tests/unit/probabilistic/flow/ -m "not slow" -q
 
-# Full suite (~5 min):
+# Flow subset, full (~5 min):
 $CONDA -m pytest tests/unit/probabilistic/flow/ -q
+
+# Entire repo test suite (1629 tests, ~19 min):
+$CONDA -m pytest tests/ -q
 ```
+
+For fast iteration when not changing flow internals, append `-m 'not slow'`
+to skip the slow tier.
 
 ## Default config knobs
 

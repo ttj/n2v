@@ -8,10 +8,11 @@ This module implements the core conformal inference computations:
 """
 
 import warnings
+from dataclasses import dataclass
+from typing import Optional
+
 import numpy as np
 from scipy.stats import beta
-from typing import Tuple, Optional
-from dataclasses import dataclass
 
 
 @dataclass

@@ -41,7 +41,7 @@ Default output is
 
 ### `run_hashemi_clipping.py`
 
-Wraps `n2v.probabilistic.verify(surrogate='clipping_block')` (the
+Wraps `n2v.probabilistic.conformal_reach(surrogate='clipping_block')` (the
 Hashemi pipeline already in n2v, NOT part of AMLS). The surrogate
 fits a calibrated bounding box; we then check whether the box is
 disjoint from the spec's unsafe halfspace using interval arithmetic.
@@ -121,10 +121,10 @@ Imports `Star`, `ProbStar`, `quantiVerifyBFS` from `~/v/other/StarV/`.
 Smoke-test every runner on a small VNN-COMP benchmark:
 
 ```bash
-cd /home/sasakis/v/tools/n2v
+cd /path/to/n2v
 for runner in hashemi_naive hashemi_clipping rs saver probstar; do
     echo "=== $runner ==="
-    timeout 120 /home/sasakis/miniconda3/envs/n2v/bin/python -u -m \
+    timeout 120 python -u -m \
         examples.FlowConformal.experiments.baselines.run_$runner \
         --benchmark acasxu_2023 --smoke
 done
@@ -133,7 +133,7 @@ done
 Full Exp 2 sweep with Hashemi-clip (cheapest baseline):
 
 ```bash
-/home/sasakis/miniconda3/envs/n2v/bin/python -u -m \
+python -u -m \
     examples.FlowConformal.experiments.baselines.run_hashemi_clipping \
     --benchmark cifar10_resnet110 --instances 100
 ```

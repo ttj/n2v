@@ -5,10 +5,6 @@ Currently only hosts :func:`compute_exact_reach`, a thin wrapper around
 to ``method='exact'`` when the approximate propagation returns a single
 loose box. Used by every benchmark harness that needs a Star-union
 ground truth.
-
-Previously lived inside
-``examples/FlowConformal/experiments/hashemi_comparison/v2_adaptive_reg/exp_hashemi_comparison.py``
-under the ``v2.`` namespace.
 """
 from __future__ import annotations
 

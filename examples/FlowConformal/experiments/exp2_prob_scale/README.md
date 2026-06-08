@@ -37,8 +37,8 @@ outputs/                          per-(benchmark, method) CSVs land here
 ## Smoke
 
 ```bash
-PY=/home/sasakis/miniconda3/envs/n2v/bin/python
-cd /home/sasakis/v/tools/n2v
+PY=python
+cd /path/to/n2v
 for bench in vit_2023 tinyimagenet_2024 cifar100_2024; do
   for tool in ours hashemi_clipping; do
     $PY -m examples.FlowConformal.experiments.exp2_prob_scale.exp2_run_$tool \

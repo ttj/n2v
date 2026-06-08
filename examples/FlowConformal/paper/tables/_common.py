@@ -31,49 +31,12 @@ from FlowConformal.paper._common import (  # noqa: F401  (re-exported)
 
 # ---- LaTeX cell formatting ----
 
-def fmt_int(n: int) -> str:
-    return f"{n}"
-
-
-def fmt_pct(p: float, ndigits: int = 1) -> str:
-    return f"{p:.{ndigits}f}"
-
-
-def fmt_seconds(s: float) -> str:
-    if s == 0.0:
-        return "--"
-    if s >= 100.0:
-        return f"{s:.0f}"
-    return f"{s:.1f}"
-
-
-def latex_escape(text: str) -> str:
-    """Minimal LaTeX-safe escape for table cells."""
-    return (
-        text.replace("\\", r"\\")
-            .replace("&", r"\&")
-            .replace("%", r"\%")
-            .replace("_", r"\_")
-            .replace("#", r"\#")
-            .replace("$", r"\$")
-    )
-
-
 def bold(s: str) -> str:
     return r"\textbf{" + s + "}"
 
 
 def italic(s: str) -> str:
     return r"\textit{" + s + "}"
-
-
-def latex_document_wrapper(table_body: str, caption: str, label: str) -> str:
-    """Standalone LaTeX wrapper so the user can compile the .tex directly."""
-    preamble = (
-        "% Auto-generated table. Compile with `pdflatex` or include in your manuscript.\n"
-        "% Required packages: booktabs, multirow.\n"
-    )
-    return preamble + table_body + "\n"
 
 
 def write_table(out_path: Path, table_tex: str) -> None:

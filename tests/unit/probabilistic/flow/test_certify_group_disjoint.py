@@ -21,9 +21,7 @@ from n2v.sets.halfspace import HalfSpace
 def test_single_halfspace_group_reduces_to_layer_1():
     """A group with one HalfSpace is disjoint iff that HalfSpace is disjoint."""
     from n2v.probabilistic.flow.scenario_verify import certify_group_disjoint
-    from tests.unit.probabilistic.flow.test_certify_halfspace_disjoint import (
-        _train_small_2d_flow,
-    )
+    from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
     flow = _train_small_2d_flow(seed=0)
     group = [HalfSpace(np.array([[1.0, 0.0]]), np.array([[-100.0]]))]
     result = certify_group_disjoint(
@@ -36,9 +34,7 @@ def test_single_halfspace_group_reduces_to_layer_1():
 def test_group_not_disjoint_if_any_hs_hit():
     """If even one HalfSpace in a group is reachable, the group is not disjoint."""
     from n2v.probabilistic.flow.scenario_verify import certify_group_disjoint
-    from tests.unit.probabilistic.flow.test_certify_halfspace_disjoint import (
-        _train_small_2d_flow,
-    )
+    from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
     flow = _train_small_2d_flow(seed=0)
     # HS_A: y_0 <= -100 (unreachable). HS_B: y_0 <= 100 (trivially reachable).
     group = [
@@ -55,9 +51,7 @@ def test_group_not_disjoint_if_any_hs_hit():
 def test_group_disjoint_epsilon_is_bonferroni_over_hs():
     """epsilon_2 = |group| * log(1/beta_2) / n_samples."""
     from n2v.probabilistic.flow.scenario_verify import certify_group_disjoint
-    from tests.unit.probabilistic.flow.test_certify_halfspace_disjoint import (
-        _train_small_2d_flow,
-    )
+    from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
     flow = _train_small_2d_flow(seed=0)
     group = [
         HalfSpace(np.array([[1.0, 0.0]]), np.array([[-100.0]])),
@@ -80,9 +74,7 @@ def test_group_disjoint_returns_per_hs_results():
     from n2v.probabilistic.flow.scenario_verify import (
         certify_group_disjoint, HalfSpaceDisjointResult,
     )
-    from tests.unit.probabilistic.flow.test_certify_halfspace_disjoint import (
-        _train_small_2d_flow,
-    )
+    from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
     flow = _train_small_2d_flow(seed=0)
     group = [
         HalfSpace(np.array([[1.0, 0.0]]), np.array([[-100.0]])),
@@ -106,9 +98,7 @@ def test_group_disjoint_early_exit_on_first_failure():
     """If the FIRST HalfSpace is not disjoint, the loop short-circuits
     and per_hs_results has just one entry."""
     from n2v.probabilistic.flow.scenario_verify import certify_group_disjoint
-    from tests.unit.probabilistic.flow.test_certify_halfspace_disjoint import (
-        _train_small_2d_flow,
-    )
+    from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
     flow = _train_small_2d_flow(seed=0)
     # First HalfSpace is trivially reachable (y_0 <= 100).
     # Second would be disjoint (y_0 <= -100) but shouldn't run due to early exit.

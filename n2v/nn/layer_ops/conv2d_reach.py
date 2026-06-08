@@ -13,7 +13,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 from typing import List
-from n2v.sets import Star, Zono, Box, ImageStar, ImageZono, Hexatope, Octatope
+from n2v.sets import Star, Zono, ImageStar, ImageZono, Hexatope, Octatope
 
 
 def conv2d_star(
@@ -267,7 +267,6 @@ def conv2d_box(layer: nn.Conv2d, input_boxes: List) -> List:
     Returns:
         List of output Boxes
     """
-    from n2v.sets import Box
 
     output_boxes = []
 
@@ -313,8 +312,8 @@ def conv2d_hexatope(layer: nn.Conv2d, input_hexatopes: List[Hexatope]) -> List[H
         # This is a simplification - in practice, image dimensions should be known
 
         # Use interval over-approximation: apply conv to bounds
-        lb_reshaped = lb.reshape(-1, 1)
-        ub_reshaped = ub.reshape(-1, 1)
+        lb.reshape(-1, 1)
+        ub.reshape(-1, 1)
 
         # Convert bounds to ImageStar temporarily to apply convolution
         # This is an over-approximation

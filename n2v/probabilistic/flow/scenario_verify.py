@@ -28,6 +28,8 @@ import numpy as np
 import torch
 from scipy.stats import chi
 
+from n2v.sets.halfspace import HalfSpace
+
 
 _REJECTION_DIM_THRESHOLD = 30
 
@@ -973,7 +975,7 @@ def preimage_search(
 def certify_halfspace_disjoint(
     flow_ode,
     threshold_q: float,
-    halfspace: 'HalfSpace',
+    halfspace: HalfSpace,
     *,
     n_samples: int,
     beta_2: float,
@@ -1303,3 +1305,24 @@ def certify_spec_disjoint(
         epsilon_2=sum(g.epsilon_2 for g in per_group_results),
         n_samples_used=n_samples,
     )
+
+
+# ---- Result-struct extraction helper --------------------------------------
+
+
+def _extract_min_worst_max_margin(scenario_result: dict) -> 'float | None':
+    """Pull min over (group, halfspace) of worst_max_margin from a
+    scenario_result dict (output of ``certify_spec_on_flow``).
+
+    Returns None when there are no per-group / per-hs entries.
+    """
+    per_group = scenario_result.get('per_group_results') or []
+    margins: list[float] = []
+    for gr in per_group:
+        for hs_res in (getattr(gr, 'per_hs_results', None) or []):
+            wm = getattr(hs_res, 'worst_max_margin', None)
+            if wm is not None:
+                margins.append(float(wm))
+    if not margins:
+        return None
+    return min(margins)

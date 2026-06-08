@@ -31,8 +31,8 @@ check is independent of the others' confidence sets, but to stay
 strictly sound we likewise split ``beta`` over the k checks.
 
 Usage:
-    cd /home/sasakis/v/tools/n2v
-    /home/sasakis/miniconda3/envs/n2v/bin/python -u -m \\
+    cd /path/to/n2v
+    python -u -m \\
         examples.FlowConformal.experiments.baselines.run_saver \\
         --benchmark <name> --smoke
 """

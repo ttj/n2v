@@ -8,7 +8,7 @@ because hashemi/starset blow up exponentially with input dim.
 
 Run with::
 
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    python -m \\
         examples.FlowConformal.paper.figures.fig5_exp3_volume_comparison
 """
 from __future__ import annotations

@@ -25,7 +25,7 @@ SEED = 47
 for onnx_rel, vnn_rel in instances:
     torch.manual_seed(SEED)
     np.random.seed(SEED)
-    row = run_pipeline(network, lb, ub, spec, seed=SEED, ...)
+    row = run_flow_pipeline(network, lb, ub, spec, seed=SEED, ...)
 ```
 
 Guarantees: (1) bit-identical CSVs on rerun, (2) order-independence
@@ -345,10 +345,11 @@ uninterpretable.
 calibrates `(flow, q)` ONCE per (instance, input-region box) and
 runs all candidate verifiers against the *same* tuple. Verifier
 quality is then the only varying axis. Implementation detail: the
-`_calibrate_flow_for_spec` and `_verify_with_calibration` helpers
-in `n2v/probabilistic/verify_flow.py` factor the canonical
-`run_verification_pipeline` into a calibration stage and a
-verifier-dispatch stage exactly to support this.
+script calls `NeuralNetwork.reach(method='flow_matching')` once
+per box to obtain the calibrated `ProbabilisticSet`, then loops
+over methods calling
+`verify_specification(prob_set, spec, config=ProbVerifyConfig(method=...))`
+— the new API natively supports the train-once-verify-many pattern.
 
 **Five candidate verifiers.**
 

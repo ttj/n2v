@@ -69,7 +69,6 @@ import torch
 # Reuse helpers from the unconstrained AMLS module to keep the two
 # implementations in lockstep.
 from n2v.probabilistic.flow.amls import (
-    AMLSResult,
     _phi_halfspace_torch,
     _push_through_flow,
     _resolve_device,

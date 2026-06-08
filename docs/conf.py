@@ -43,7 +43,6 @@ exclude_patterns = [
     "development_status.md",
     "lp_solvers.md",
     "probabilistic_verification.md",
-    "theoretical_foundations.md",
 ]
 
 # -- Autodoc configuration --------------------------------------------------

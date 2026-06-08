@@ -23,8 +23,8 @@ The ``--spec`` flag selects between two specs per benchmark:
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    cd /path/to/n2v
+    python -m \\
         examples.FlowConformal.experiments.exp3_synthetic.exp3_run_ours \\
         --benchmark synth_5d --score flow --spec unsat --smoke
 """
@@ -41,6 +41,9 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from examples.FlowConformal.experiments._runner_utils import (
+    append_csv_row_with_defaults,
+)
 from examples.FlowConformal.experiments.exp3_synthetic._benchmarks import (
     EXP3_BENCHMARKS,
     EXP3_SCORES,
@@ -50,7 +53,9 @@ from examples.FlowConformal.experiments.exp3_synthetic._benchmarks import (
     make_network,
     make_spec,
 )
-from n2v.probabilistic.verify_flow import run_verification_pipeline
+# NB: flow-matching reach happens inside
+# ``_score_pipeline.run_score_pipeline(score='flow', ...)``, which calls
+# the shared three-stage runner.
 
 _SEED_BASE = 47
 _DEFAULT_K_SEEDS = 5
@@ -139,18 +144,13 @@ def _run_one_seed(benchmark: str, score: str, spec_type: str, cfg: dict,
 
 
 def _write_timeout_row(out_csv, benchmark, score, spec_type, seed):
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader(); f.flush()
-        row = {f: '' for f in _FIELDS}
-        row.update({'benchmark': benchmark, 'score': score,
-                    'spec_type': spec_type, 'seed': seed,
-                    'verdict': 'TIMEOUT',
-                    'error': 'shell timeout (run_cell.sh exit 124)',
-                    'timestamp': _now_iso()})
-        writer.writerow(row); f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'benchmark': benchmark, 'score': score,
+        'spec_type': spec_type, 'seed': seed,
+        'verdict': 'TIMEOUT',
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 

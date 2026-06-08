@@ -1,14 +1,12 @@
 """Probabilistic verification of a single ACAS Xu VNN-COMP instance.
 
-Phase 2 smoke test. Given a ``(network_id, property_id)`` pair, loads
-the ONNX network and VNN-LIB spec, runs the flow-conformal verification
-pipeline, and prints the verdict + certificate parameters.
-
-Phase 3 will sweep across all 186 instances; this script is the single-
-instance driver that Phase 3 calls in parallel.
+Given a ``(network_id, property_id)`` pair, loads the ONNX network and
+VNN-LIB spec, runs the flow-conformal verification pipeline, and prints
+the verdict + certificate parameters. Full 186-instance sweeps go through
+``examples.FlowConformal.experiments.exp1_vnncomp_subset.exp1_run_ours``.
 
 Usage:
-    python -m examples.FlowConformal.benchmarks.test_acasxu_single \
+    python -m examples.FlowConformal.benchmarks.demo_acasxu_single \
         --network 1_1 --property 1
 
 Defaults to (1_1, 1) — the simplest case.
@@ -60,14 +58,14 @@ def _extract_spec(prop_field):
 
     ``load_vnnlib`` returns ``prop`` as ``list[dict]`` where each dict has
     keys ``{'dim', 'Hg', 'H', 'g'}`` — the HalfSpace is under ``Hg``.
-    For Phase 2 we support only the len-1 list case (one conjunct);
-    OR-of-ANDs is deferred.
+    Only the len-1 list case (one conjunct) is supported here;
+    OR-of-ANDs output specs go through the sweep runner.
     """
     if isinstance(prop_field, list):
         if len(prop_field) != 1:
             raise NotImplementedError(
                 f'OR-of-ANDs output specs (len {len(prop_field)} conjuncts) '
-                'are deferred to Phase 3.')
+                'are not supported by this single-instance driver.')
         entry = prop_field[0]
         if isinstance(entry, dict) and 'Hg' in entry:
             return entry['Hg']
@@ -125,9 +123,9 @@ def main():
     print(f'Loading property {vnn_path.name}')
     prop = load_vnnlib(str(vnn_path))
     # If prop_k uses OR-of-ANDs input regions, `lb`/`ub` may come back
-    # as a list — flag that and bail in Phase 2.
+    # as a list — this single-instance driver does not support that.
     if isinstance(prop['lb'], list) or isinstance(prop['ub'], list):
-        print('OR-of-ANDs input regions not supported in Phase 2', file=sys.stderr)
+        print('OR-of-ANDs input regions are not supported here', file=sys.stderr)
         sys.exit(3)
     input_lb = np.asarray(prop['lb']).flatten()
     input_ub = np.asarray(prop['ub']).flatten()

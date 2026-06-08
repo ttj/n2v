@@ -12,7 +12,7 @@ import numpy as np
 import torch.nn as nn
 from typing import List, Tuple
 
-from n2v.sets import Star, Zono, Box
+from n2v.sets import Star, Box
 from n2v.sets.image_star import ImageStar
 from n2v.sets.image_zono import ImageZono
 

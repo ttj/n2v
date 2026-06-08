@@ -23,10 +23,13 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Iterable, Optional, Tuple
+from typing import TYPE_CHECKING, Iterable, Optional, Tuple
 
 import numpy as np
 import torch
+
+if TYPE_CHECKING:
+    import plotly.graph_objects as go
 
 
 logger = logging.getLogger(__name__)
@@ -71,7 +74,7 @@ def render_star_union_3d(
     max_stars: int = 500,
     mesh_opacity: float = 0.25,
     include_plotlyjs: str = 'directory',
-) -> 'plotly.graph_objects.Figure':
+) -> go.Figure:
     """Render a list of n2v Stars as a 3D Plotly figure.
 
     Args:
@@ -161,7 +164,7 @@ def render_star_convex_hull_3d(
     out_html: Optional[Path] = None,
     mesh_opacity: float = 0.35,
     include_plotlyjs: str = 'directory',
-) -> Tuple['plotly.graph_objects.Figure', float]:
+) -> Tuple[go.Figure, float]:
     """Render the convex hull of all Star vertices as a single mesh.
 
     Gives a single clean surface instead of a fuzzy pile of overlapping
@@ -295,7 +298,7 @@ def render_star_union_isosurface_3d(
     padding_frac: float = 0.05,
     mesh_opacity: float = 0.4,
     include_plotlyjs: str = 'directory',
-) -> 'plotly.graph_objects.Figure':
+) -> go.Figure:
     """Render the Star union as a marching-cubes isosurface.
 
     Samples ``resolution^3`` points on a regular grid over the bounding
@@ -393,7 +396,7 @@ def render_probabilistic_set_isosurface_3d(
     star_opacity: float = 0.2,
     include_plotlyjs: str = 'directory',
     batch_size: int = 65536,
-) -> 'plotly.graph_objects.Figure':
+) -> go.Figure:
     """Render the conformal probabilistic reachset as a marching-cubes
     isosurface of its score function.
 

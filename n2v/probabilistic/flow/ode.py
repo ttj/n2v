@@ -9,10 +9,10 @@ The OT-CFM training convention is:
 To map data -> latent (Gaussian), we integrate BACKWARDS from t -> 0.
 """
 
-import torch
-import torch.nn as nn
 from typing import List
 
+import torch
+import torch.nn as nn
 from torchdiffeq import odeint
 
 
@@ -151,14 +151,14 @@ class FlowODE(nn.Module):
             t_batch = t_val.expand(y_val.shape[0])
             return self.velocity_field(t_batch, y_val)
 
-        trajectory = odeint(
+        odeint(
             odefunc, y, t_span, method='dopri5',
             atol=1e-5, rtol=1e-5,
         )
 
         # trajectory: (len(t_span), batch, dim)
         # Map each requested t_value to its position in t_span
-        t_span_list = t_span.tolist()
+        t_span.tolist()
         norms = []
         for tv in t_values:
             # Find the index in t_span closest to 0 when starting from tv

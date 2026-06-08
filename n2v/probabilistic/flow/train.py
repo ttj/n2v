@@ -10,11 +10,13 @@ Supports two OT coupling methods:
   - Sinkhorn (approximate, GPU-friendly, pure tensor ops)
 """
 
+from typing import Callable, List, Optional, Tuple, Union
+
 import torch
 import torch.nn.functional as F
-from typing import Tuple, List, Optional, Union, Callable
 
 from n2v.probabilistic.flow.model import VelocityField
+from n2v.probabilistic.flow.ode import FlowODE
 
 
 def compute_adaptive_sinkhorn_reg(
@@ -565,3 +567,80 @@ def generate_reflow_pairs(
         x1 = flow_ode.inverse(z0, t=1.0, n_steps=n_steps)
 
     return z0.detach(), x1.detach()
+
+
+# ---- Pipeline-glue training variants --------------------------------------
+#
+# These are convenience wrappers around :func:`train_flow` that bundle
+# specific hyperparameter combinations used by the flow-matching reach
+# pipeline. They are not the training algorithm itself — they are
+# named-config presets for the algorithm above.
+
+
+def _train_flow(y_train: torch.Tensor, dim: int, n_epochs: int, seed: int,
+                batch_size: int = 2048, sinkhorn_iters: int = 10,
+                hidden: int = 128, n_layers: int = 4,
+                time_embed: str = 'concat',
+                time_sampling: str = 'uniform',
+                internal_standardize: bool = True,
+                return_losses: bool = False,
+                coupling: str = 'sinkhorn',
+                use_ema: bool = True):
+    """Production-grade OT-CFM. Runs GPU-end-to-end.
+
+    ``internal_standardize``: pass-through to ``train_flow``'s
+    ``standardize_outputs`` argument. Callers that pre-whiten the
+    training data externally (e.g. ``run_verification_pipeline``) must
+    pass False to avoid double-whitening and to keep the flow operating
+    end-to-end in whitened coordinates rather than data coordinates.
+
+    ``return_losses``: if True, return ``(FlowODE, losses)`` tuple
+    instead of just the FlowODE; the per-epoch loss list is used by
+    callers that want to record the final training loss.
+
+    ``coupling``: pass-through to ``train_flow``'s ``coupling`` argument.
+    Default 'sinkhorn' matches pre-exposure behavior bit-identically.
+
+    ``use_ema``: pass-through to ``train_flow``'s ``use_ema`` argument.
+    Default True matches pre-exposure behavior bit-identically.
+    """
+    torch.manual_seed(seed)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    vf = VelocityField(dim=dim, hidden=hidden, n_layers=n_layers,
+                       activation='silu', time_embed=time_embed).to(device)
+    y_train = y_train.to(device)
+    vf, losses = train_flow(
+        vf, y_train, n_epochs=n_epochs, batch_size=batch_size, lr=1e-3,
+        coupling=coupling, sinkhorn_reg='auto', sinkhorn_iters=sinkhorn_iters,
+        use_ema=use_ema, standardize_outputs=internal_standardize,
+        time_sampling=time_sampling,
+    )
+    vf.eval()
+    flow = FlowODE(vf)
+    if return_losses:
+        return flow, losses
+    return flow
+
+
+def _train_flow_tight(y_train: torch.Tensor, dim: int, n_epochs: int,
+                      seed: int, internal_standardize: bool = True,
+                      return_losses: bool = False,
+                      coupling: str = 'sinkhorn',
+                      use_ema: bool = True):
+    """Higher-capacity, longer-training config for ThreeBlobClassifier3D-
+    class multimodal output distributions.
+
+    hidden=256, L=6, sinusoidal time embedding, logit-normal time sampling
+    (concentrates t near 0.5 where interpolation is hardest). Meets the
+    (c)+(e) experiment spec. Training cost scales linearly with n_epochs.
+    """
+    return _train_flow(
+        y_train, dim=dim, n_epochs=n_epochs, seed=seed,
+        batch_size=2048, sinkhorn_iters=10,
+        hidden=256, n_layers=6,
+        time_embed='sinusoidal', time_sampling='logit_normal',
+        internal_standardize=internal_standardize,
+        return_losses=return_losses,
+        coupling=coupling,
+        use_ema=use_ema,
+    )

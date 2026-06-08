@@ -17,6 +17,30 @@ batch=1 probe). This test verifies:
      conv accumulation order, which is float32-noise level).
 
 Skipped if the metaroom ONNX file is not on disk.
+
+------------------------------------------------------------------------
+INFRASTRUCTURE DEPENDENCY (read before running in CI):
+------------------------------------------------------------------------
+This test requires the VNN-COMP 2025 benchmark repo to be present at::
+
+    ~/v/other/VNNCOMP/vnncomp2025_benchmarks/
+
+specifically the metaroom_2023 ONNX file referenced by ``_METAROOM_GZ``
+below. The ``metaroom_onnx_path`` fixture (see below) calls
+``pytest.skip()`` when this file is absent, so on machines without the
+VNN-COMP repo every test in this module silently skips. This is
+intentional -- we don't want the test suite to crash on developer boxes
+that don't have the (large) external benchmark data -- but it also
+means CI gets no signal from this file unless the repo is mounted.
+
+This is currently the ONLY test in the repository that depends on real
+VNN-COMP benchmark data. Every other VNN-COMP-flavored test (e.g.
+``tests/integration/test_vnncomp_runner.py``) builds synthetic ONNX
+inside ``tmp_path`` and is fully self-contained.
+
+To exercise this test in CI, the VNN-COMP 2025 benchmark repo would
+need to be mounted (or at least the single ``metaroom_2023`` ONNX
+checked into a fixtures directory) so that ``_METAROOM_GZ`` resolves.
 """
 from __future__ import annotations
 
@@ -55,7 +79,7 @@ def test_patch_eliminates_batch_loop(metaroom_onnx_path):
     )
 
     model = load_onnx(str(metaroom_onnx_path))
-    shape, batch_loop = _detect_input_shape(model, _METAROOM_FLAT_DIM)
+    shape, batch_loop, _ = _detect_input_shape(model, _METAROOM_FLAT_DIM)
     assert shape == (3, 32, 56)
     assert batch_loop is False, (
         'The reshape patch should have made the inner module batch-friendly.')
@@ -72,7 +96,7 @@ def test_batch_one_bit_exact(metaroom_onnx_path):
     m_unpatched = load_onnx(str(metaroom_onnx_path))
 
     m_patched = load_onnx(str(metaroom_onnx_path))
-    shape, batch_loop = _detect_input_shape(m_patched, _METAROOM_FLAT_DIM)
+    shape, batch_loop, _ = _detect_input_shape(m_patched, _METAROOM_FLAT_DIM)
     assert batch_loop is False
     w_patched = _GenericONNXWrapper(m_patched, input_shape=shape, batch_loop=False)
 
@@ -108,7 +132,7 @@ def test_batched_matches_per_sample_loop(metaroom_onnx_path, N):
 
     # Patched: detect_input_shape rewrites reshape consts; wrapper batches.
     m_new = load_onnx(str(metaroom_onnx_path))
-    shape, batch_loop = _detect_input_shape(m_new, _METAROOM_FLAT_DIM)
+    shape, batch_loop, _ = _detect_input_shape(m_new, _METAROOM_FLAT_DIM)
     assert batch_loop is False
     w_new = _GenericONNXWrapper(m_new, input_shape=shape, batch_loop=False)
 

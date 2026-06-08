@@ -28,7 +28,7 @@ class TestVerifySpecificationBasic:
         result = verify_specification([star], halfspace)
 
         # Should be satisfied (no intersection)
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_single_halfspace_unknown(self):
         """Test verification with single halfspace that intersects (unknown)."""
@@ -46,7 +46,7 @@ class TestVerifySpecificationBasic:
         result = verify_specification([star], halfspace)
 
         # Should be unknown (intersection exists)
-        assert result == 2
+        assert result.verdict == "UNKNOWN"
 
     def test_single_halfspace_from_dict(self):
         """Test verification with property as dictionary."""
@@ -62,7 +62,7 @@ class TestVerifySpecificationBasic:
 
         result = verify_specification([star], property_dict)
 
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_single_halfspace_from_list_of_dicts(self):
         """Test verification with property as list of dicts (VNN-LIB format)."""
@@ -78,7 +78,7 @@ class TestVerifySpecificationBasic:
 
         result = verify_specification([star], property_list)
 
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
 
 class TestVerifySpecificationMultipleHalfspaces:
@@ -105,7 +105,7 @@ class TestVerifySpecificationMultipleHalfspaces:
         result = verify_specification([star], [hs1, hs2])
 
         # All halfspaces satisfied (no intersection)
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_multiple_halfspaces_one_intersects(self):
         """Test with multiple halfspaces where one intersects (unknown)."""
@@ -128,7 +128,7 @@ class TestVerifySpecificationMultipleHalfspaces:
         result = verify_specification([star], [hs1, hs2])
 
         # One intersects -> unknown
-        assert result == 2
+        assert result.verdict == "UNKNOWN"
 
 
 class TestVerifySpecificationMultipleStars:
@@ -150,7 +150,7 @@ class TestVerifySpecificationMultipleStars:
         result = verify_specification([star1, star2], halfspace)
 
         # All stars satisfy property
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_multiple_stars_one_intersects(self):
         """Test with multiple stars where one intersects property."""
@@ -168,7 +168,7 @@ class TestVerifySpecificationMultipleStars:
         result = verify_specification([star1, star2], halfspace)
 
         # One star intersects -> unknown
-        assert result == 2
+        assert result.verdict == "UNKNOWN"
 
 
 class TestVerifySpecificationEdgeCases:
@@ -183,7 +183,7 @@ class TestVerifySpecificationEdgeCases:
         result = verify_specification([], halfspace)
 
         # No reach sets -> property satisfied (vacuously true)
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_invalid_property_type(self):
         """Test with invalid property type."""
@@ -208,7 +208,7 @@ class TestVerifySpecificationEdgeCases:
         result = verify_specification([star], halfspace)
 
         # Should be satisfied (max sum is 4, need >= 5)
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_infeasible_intersection(self):
         """Test when intersection exists but is infeasible (empty Star).
@@ -235,7 +235,7 @@ class TestVerifySpecificationEdgeCases:
         result = verify_specification([star], halfspace)
 
         # Intersection is infeasible -> property satisfied (UNSAT)
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
 
 class TestVerifySpecificationRealWorld:
@@ -264,7 +264,7 @@ class TestVerifySpecificationRealWorld:
         # Check if reachable set intersects unsafe region
         # [0.7, 0.9] x [0.1, 0.3]: max(output[1] - output[0]) = 0.3 - 0.7 = -0.4 < 0
         # So no intersection -> verified robust
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_multi_class_verification_scenario(self):
         """Test multi-class robustness verification."""
@@ -292,7 +292,7 @@ class TestVerifySpecificationRealWorld:
         # Neither unsafe condition should intersect
         # max(class1 - class0) = 0.15 - 0.7 = -0.55 < 0 ✓
         # max(class2 - class0) = 0.15 - 0.7 = -0.55 < 0 ✓
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
 
 class TestVerifySpecificationMultiGroup:
@@ -315,7 +315,7 @@ class TestVerifySpecificationMultiGroup:
         result = verify_specification([star], prop)
 
         # Group 1 is infeasible → no input satisfies both → satisfied
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_star_multi_group_all_intersect_returns_unknown(self):
         """When all groups individually intersect, result is unknown."""
@@ -330,7 +330,7 @@ class TestVerifySpecificationMultiGroup:
         result = verify_specification([star], prop)
 
         # Both groups feasible simultaneously (e.g., x=(0.7, 0.7)) → unknown
-        assert result == 2
+        assert result.verdict == "UNKNOWN"
 
     def test_box_multi_group_second_group_infeasible(self):
         """Box with multi-group property where second group is infeasible."""
@@ -344,7 +344,7 @@ class TestVerifySpecificationMultiGroup:
         prop = [{'Hg': hs0}, {'Hg': hs1}]
         result = verify_specification([box], prop)
 
-        assert result == 1, "Second group infeasible → satisfied"
+        assert result.verdict == "UNSAT", "Second group infeasible → satisfied"
 
     def test_multi_group_with_or_within_group(self):
         """Multi-group where one group has OR of halfspaces."""
@@ -359,7 +359,7 @@ class TestVerifySpecificationMultiGroup:
         prop = [{'Hg': [hs0a, hs0b]}, {'Hg': hs1}]
         result = verify_specification([star], prop)
 
-        assert result == 1, "Group 1 infeasible → satisfied despite group 0 intersecting"
+        assert result.verdict == "UNSAT", "Group 1 infeasible → satisfied despite group 0 intersecting"
 
     def test_single_group_backwards_compatible(self):
         """Single-group property (list with one dict) should work as before."""
@@ -369,7 +369,7 @@ class TestVerifySpecificationMultiGroup:
         prop = [{'Hg': hs}]
         result = verify_specification([star], prop)
 
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
 
 class TestVerifySpecificationBox:
@@ -385,7 +385,7 @@ class TestVerifySpecificationBox:
         hs = HalfSpace(G, g)
 
         result = verify_specification([box], hs)
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_box_intersecting_single_halfspace(self):
         """Box intersecting halfspace should return 2 (unknown)."""
@@ -397,7 +397,7 @@ class TestVerifySpecificationBox:
         hs = HalfSpace(G, g)
 
         result = verify_specification([box], hs)
-        assert result == 2
+        assert result.verdict == "UNKNOWN"
 
     def test_box_multirow_halfspace_disjoint(self):
         """Box disjoint from multi-row halfspace (like yolo's 5x21125)."""
@@ -410,7 +410,7 @@ class TestVerifySpecificationBox:
         hs = HalfSpace(G, g)
 
         result = verify_specification([box], hs)
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_box_multirow_halfspace_intersecting(self):
         """Box intersects multi-row halfspace (all rows feasible simultaneously)."""
@@ -422,7 +422,7 @@ class TestVerifySpecificationBox:
         hs = HalfSpace(G, g)
 
         result = verify_specification([box], hs)
-        assert result == 2
+        assert result.verdict == "UNKNOWN"
 
     def test_box_multiple_halfspaces_or_logic(self):
         """Box with multiple halfspaces (OR logic) — one intersects."""
@@ -434,7 +434,7 @@ class TestVerifySpecificationBox:
         hs2 = HalfSpace(np.array([[1, 0]]), np.array([[0.5]]))
 
         result = verify_specification([box], [hs1, hs2])
-        assert result == 2
+        assert result.verdict == "UNKNOWN"
 
     def test_box_multiple_halfspaces_all_disjoint(self):
         """Box with multiple halfspaces (OR logic) — all disjoint."""
@@ -444,7 +444,7 @@ class TestVerifySpecificationBox:
         hs2 = HalfSpace(np.array([[0, -1]]), np.array([[-2]]))
 
         result = verify_specification([box], [hs1, hs2])
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_box_dict_property_format(self):
         """Box works with dict property format from vnnlib."""
@@ -455,7 +455,7 @@ class TestVerifySpecificationBox:
         hs = HalfSpace(G, g)
 
         result = verify_specification([box], [{'Hg': hs}])
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_probabilistic_box_uses_box_path(self):
         """ProbabilisticBox (inherits Box) should use the Box fast path."""
@@ -471,7 +471,7 @@ class TestVerifySpecificationBox:
         hs = HalfSpace(G, g)
 
         result = verify_specification([pbox], hs)
-        assert result == 1
+        assert result.verdict == "UNSAT"
 
     def test_box_high_dimensional_disjoint(self):
         """High-dimensional Box should be fast (no Star conversion).
@@ -493,7 +493,7 @@ class TestVerifySpecificationBox:
         result = verify_specification([box], hs)
         elapsed = time.time() - t0
 
-        assert result == 1
+        assert result.verdict == "UNSAT"
         assert elapsed < 5.0, f"Box verify_specification took {elapsed:.1f}s, expected < 5s"
 
     def test_box_matches_star_result(self):

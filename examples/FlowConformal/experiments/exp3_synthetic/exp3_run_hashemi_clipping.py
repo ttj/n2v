@@ -2,12 +2,12 @@
 
 Mirrors Exp 1/2/4 Hashemi-clipping runners. Synthetic networks are
 constructed in-Python (no ONNX/vnnlib) so we use the
-:func:`n2v.probabilistic.verify` API directly.
+:func:`n2v.probabilistic.conformal_reach` API directly.
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    cd /path/to/n2v
+    python -m \\
         examples.FlowConformal.experiments.exp3_synthetic.exp3_run_hashemi_clipping \\
         --benchmark synth_5d --spec unsat --smoke
 """
@@ -24,9 +24,11 @@ from typing import Any, Dict
 import numpy as np
 import torch
 
+from examples.FlowConformal.experiments._runner_utils import (
+    append_csv_row_with_defaults,
+)
 from examples.FlowConformal.experiments.baselines._common import (
     halfspace_disjoint_from_box,
-    torch_callable,
 )
 from examples.FlowConformal.experiments.exp3_synthetic._benchmarks import (
     EXP3_BENCHMARKS,
@@ -40,7 +42,8 @@ from examples.FlowConformal.experiments.exp3_synthetic.exact_volumes import (
     exact_volume_three_blob_3d,
     exact_volume_two_banana,
 )
-from n2v.probabilistic import verify
+from n2v.nn import NeuralNetwork
+from n2v.nn.reach import ConformalReachConfig
 from n2v.sets import Box
 
 _SEED_BASE = 47
@@ -158,16 +161,15 @@ def _run_one_seed(benchmark: str, spec_type: str, *,
                 'error': f'load {type(e).__name__}: {e}'}
 
     input_set = Box(np.asarray(lb).flatten(), np.asarray(ub).flatten())
-    model_fn = torch_callable(network)
+    net = NeuralNetwork(network)
     try:
-        pbox = verify(
-            model=model_fn,
-            input_set=input_set,
-            m=m, ell=ell,
-            epsilon=_EPSILON,
-            surrogate='clipping_block',
-            seed=seed,
-            verbose=False,
+        pbox = net.reach(
+            input_set, method='conformal',
+            config=ConformalReachConfig(
+                m=m, ell=ell, epsilon=_EPSILON,
+                surrogate='clipping_block',
+                seed=seed, verbose=False,
+            ),
         )
     except Exception as e:
         return {'verdict': 'ERROR',
@@ -212,17 +214,12 @@ def _run_one_seed(benchmark: str, spec_type: str, *,
 
 
 def _write_timeout_row(out_csv, benchmark, spec_type, seed):
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader(); f.flush()
-        row = {f: '' for f in _FIELDS}
-        row.update({'benchmark': benchmark, 'spec_type': spec_type,
-                    'seed': seed, 'verdict': 'TIMEOUT',
-                    'error': 'shell timeout (run_cell.sh exit 124)',
-                    'timestamp': _now_iso()})
-        writer.writerow(row); f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'benchmark': benchmark, 'spec_type': spec_type,
+        'seed': seed, 'verdict': 'TIMEOUT',
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 

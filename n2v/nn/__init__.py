@@ -8,5 +8,6 @@ and provides the reach() method for reachability analysis.
 """
 
 from n2v.nn.neural_network import NeuralNetwork
+from n2v.nn.reach import ReachConfig
 
-__all__ = ["NeuralNetwork"]
+__all__ = ["NeuralNetwork", "ReachConfig"]

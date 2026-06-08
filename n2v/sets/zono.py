@@ -6,7 +6,7 @@ Translated from MATLAB NNV Zono.m
 """
 
 import numpy as np
-from typing import Optional, Tuple, List, TYPE_CHECKING
+from typing import Optional, Tuple, TYPE_CHECKING
 from scipy.linalg import svd
 
 # TYPE_CHECKING imports for type hints (avoid circular import at runtime)
@@ -107,7 +107,7 @@ class Zono:
         c = (lb + ub) / 2.0
 
         # Generators: one per dimension, each with range (ub-lb)/2
-        n = lb.shape[0]
+        lb.shape[0]
         V = np.diag(((ub - lb) / 2.0).flatten())
 
         return cls(c, V)

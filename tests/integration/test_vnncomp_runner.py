@@ -3,6 +3,24 @@ Integration tests for the generic VNN-COMP runner.
 
 Tests the full pipeline: ONNX model -> VNNLIB spec -> verification result.
 Uses synthetic models saved as ONNX and hand-written VNNLIB specs.
+
+------------------------------------------------------------------------
+INFRASTRUCTURE NOTE (cross-tree import dependency):
+------------------------------------------------------------------------
+This module reaches into the sibling ``examples/VNN-COMP/`` tree to
+import ``run_instance`` via the ``sys.path.insert`` call below. This is
+a known smell -- ``examples/`` is not a Python package, and adding it
+to ``sys.path`` at import time is a fragile way to share code with the
+test suite. If the ``examples/VNN-COMP/`` directory is renamed, moved,
+or restructured (e.g. the runner is split into a subpackage), every
+test in this file will fail at import time with ``ModuleNotFoundError:
+No module named 'run_instance'``.
+
+Unlike ``tests/unit/experiments/test_metaroom_batched_wrapper.py``,
+this test does NOT depend on the external VNN-COMP benchmark repo:
+every ONNX model and VNNLIB spec is synthesized into ``tmp_path``
+during the test. So as long as the cross-tree import resolves, these
+tests run anywhere with no external data.
 """
 
 import sys
@@ -12,6 +30,8 @@ import pytest
 import torch
 import torch.nn as nn
 
+# NOTE: cross-tree import -- see top-of-file comment. If
+# ``examples/VNN-COMP/`` is moved or renamed, the import below breaks.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'examples', 'VNN-COMP'))
 
 

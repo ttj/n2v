@@ -1,7 +1,7 @@
 """Tests for C1 / AMLS (Adaptive Multilevel Splitting) flow-set detector.
 
 These tests exercise the AMLS rare-event estimator on small synthetic
-flows, plus the dispatch into ``run_verification_pipeline`` via
+flows, plus the dispatch into ``verify_specification`` via
 ``verification_method='amls'``.
 """
 from __future__ import annotations
@@ -43,27 +43,6 @@ class _IdentityFlow:
 
     def to(self, *_args, **_kw):
         return self
-
-
-def _train_small_2d_flow(seed: int = 0):
-    from n2v.probabilistic.flow.model import VelocityField
-    from n2v.probabilistic.flow.ode import FlowODE
-    from n2v.probabilistic.flow.train import train_flow
-
-    torch.manual_seed(seed)
-    vf = VelocityField(dim=2, hidden=64, n_layers=2,
-                       activation='silu', time_embed='concat')
-    rng = np.random.default_rng(seed)
-    y_train = torch.from_numpy(
-        rng.standard_normal((2000, 2)).astype(np.float32)
-    )
-    vf, _ = train_flow(
-        vf, y_train, n_epochs=100, batch_size=512, lr=1e-3,
-        coupling='sinkhorn', sinkhorn_reg='auto', sinkhorn_iters=5,
-        use_ema=True, standardize_outputs=False, time_sampling='uniform',
-    )
-    vf.eval()
-    return FlowODE(vf)
 
 
 # ---------- Easy case: U is the bulk; detect at level 0 ----------
@@ -212,94 +191,3 @@ def test_amls_certify_spec_two_groups_one_disjoint_unsat():
     assert res.detected_any is True
 
 
-# ---------- End-to-end dispatch via run_verification_pipeline ----------
-
-
-@pytest.mark.slow
-def test_amls_dispatch_in_common_py_returns_unknown_when_unsafe_reachable():
-    """verification_method='amls' end-to-end on a small banana network
-    where the spec is reachable. Expect verdict=UNKNOWN with
-    amls_detected_unsafe=True.
-    """
-    from examples.FlowConformal.benchmarks._common import \
-        run_verification_pipeline
-    from examples.FlowConformal.networks import RotatedBananaNet
-
-    torch.manual_seed(0)
-    net = RotatedBananaNet().eval()
-    # Trivially-reachable spec: y_0 <= +1e9 (always true).
-    spec = HalfSpace(np.array([[1.0, 0.0]]), np.array([[1e9]]))
-    res = run_verification_pipeline(
-        network=net,
-        input_lb=np.array([0.0, 0.0]),
-        input_ub=np.array([1.0, 1.0]),
-        spec=spec,
-        alpha=0.01, m=200, ell=199,
-        scenario_n_samples=200, scenario_beta=0.001,
-        n_train=500, flow_epochs=100, flow_config='base',
-        seed=0, verification_method='amls',
-        # Disable Stage-1 falsifier: this test is about Stage-2 AMLS.
-        sat_backend='none',
-    )
-    # A reachable spec should detect (verdict UNKNOWN, not UNSAT).
-    assert res['verdict'] == 'UNKNOWN'
-    assert res.get('amls_detected_unsafe') is True
-
-
-@pytest.mark.slow
-def test_amls_dispatch_in_common_py_unsat_when_unreachable():
-    """verification_method='amls' end-to-end on a banana network with a
-    trivially-unreachable spec. Expect verdict=UNSAT with
-    amls_detected_unsafe=False.
-    """
-    from examples.FlowConformal.benchmarks._common import \
-        run_verification_pipeline
-    from examples.FlowConformal.networks import RotatedBananaNet
-
-    torch.manual_seed(0)
-    net = RotatedBananaNet().eval()
-    spec = HalfSpace(np.array([[1.0, 0.0]]), np.array([[-100.0]]))
-    res = run_verification_pipeline(
-        network=net,
-        input_lb=np.array([0.0, 0.0]),
-        input_ub=np.array([1.0, 1.0]),
-        spec=spec,
-        alpha=0.01, m=200, ell=199,
-        scenario_n_samples=200, scenario_beta=0.001,
-        n_train=500, flow_epochs=100, flow_config='base',
-        seed=0, verification_method='amls',
-    )
-    assert res['verdict'] == 'UNSAT'
-    assert res.get('amls_detected_unsafe') is False
-
-
-# ---------- Default scenario path bit-identical guard ----------
-
-
-@pytest.mark.slow
-def test_default_scenario_unchanged_after_amls_addition():
-    """Default verification_method='scenario' must produce bit-identical
-    q to an explicit verification_method='scenario' after AMLS
-    integration.
-    """
-    from examples.FlowConformal.benchmarks._common import \
-        run_verification_pipeline
-    from examples.FlowConformal.networks import RotatedBananaNet
-
-    torch.manual_seed(0)
-    net = RotatedBananaNet().eval()
-    common = dict(
-        network=net,
-        input_lb=np.array([0.0, 0.0]),
-        input_ub=np.array([1.0, 1.0]),
-        spec=HalfSpace(np.array([[1.0, 0.0]]), np.array([[-100.0]])),
-        alpha=0.01, m=200, ell=199,
-        scenario_n_samples=200, scenario_beta=0.001,
-        n_train=500, flow_epochs=100, flow_config='base',
-    )
-    r1 = run_verification_pipeline(seed=0, **common)
-    r2 = run_verification_pipeline(
-        seed=0, verification_method='scenario', **common,
-    )
-    assert r1['q'] == pytest.approx(r2['q'], rel=1e-9)
-    assert r1['verdict'] == r2['verdict']

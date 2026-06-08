@@ -23,7 +23,7 @@ from pathlib import Path
 
 import n2v
 from n2v.sets import Star, Box
-from n2v.probabilistic import verify as prob_verify
+from n2v.probabilistic import conformal_reach as prob_verify
 
 
 def load_matlab_network(mat_file: str) -> nn.Sequential:
@@ -208,7 +208,7 @@ def main():
     t_prob_naive_start = time.time()
     prob_naive_result = prob_verify(
         model=model_fn,
-        input_set=input_box,
+        input_box=input_box,
         m=5000,           # Calibration samples
         epsilon=0.01,     # 99% coverage
         surrogate='naive',

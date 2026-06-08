@@ -18,14 +18,47 @@ phases brings it down to a single overnight run.
 ## 0. Prerequisites
 
 ```bash
-# clone + cd
-git clone <repo-url> n2v && cd n2v
+# clone + cd (use --recurse-submodules to pull the onnx2torch fork; see below).
+git clone --recurse-submodules <repo-url> n2v && cd n2v
 
 # system libs (Ubuntu/Debian); root only.
 sudo apt install libglpk-dev libgmp3-dev    # for ProbStar/StarV (Tier-B)
 ```
 
+### 0a. onnx2torch submodule pin
+
+The repo vendors a small fork of [onnx2torch](https://github.com/sammsaski/onnx2torch.git)
+under `third_party/onnx2torch/`, pinned to a specific commit that contains
+three local patches required for VNN-COMP 2025 networks:
+
+- `batch_norm.py`: rank-agnostic BatchNorm path (needed for `vit_2023` in Exp 2).
+- `clip.py`: treats empty-string input slot as missing optional input (ONNX-spec compliance fix).
+- `slice.py`: typo fix in `OnnxSliceV9.forward` + accept list/numpy `axes`/`steps`.
+
+Fresh clones with `--recurse-submodules` get the right version automatically.
+If you cloned without it:
+
+```bash
+git submodule update --init --recursive
+```
+
+The pin lives in `.gitmodules` and the supermodule commit — do not reset it
+unless you mean to.
+
 GPU driver must be **≥ 525.60** (CUDA 12.1+). Verify with `nvidia-smi`.
+
+### 0b. Parity verification (historical)
+
+The post-NeurIPS cleanup refactor migrated the runners from the legacy
+`run_verification_pipeline` to the new three-stage public API
+(`falsify` → `NeuralNetwork.reach(method='flow_matching')` →
+`verify_specification`). A parity smoke test
+(`examples/FlowConformal/smokes/refactor_parity.py`, deleted at Phase 17
+after the migration was complete) asserted that the new API produced
+bit-identical `q` / `verdict` / `epsilon_total` on a representative
+instance. See [.claude/plans/neurips-cleanup-refactor.md](../../.claude/plans/neurips-cleanup-refactor.md)
+for the full record. Future drift is now caught by the unit test suite
+(`pytest tests/unit/probabilistic/`).
 
 ---
 
@@ -146,7 +179,7 @@ Before committing many GPU-hours to the full sweep, run a smoke pass
 to catch broken installs / config mismatches:
 
 ```bash
-cd /home/sasakis/v/tools/n2v
+cd /path/to/n2v
 bash examples/FlowConformal/experiments/run_paper_sweeps.sh \
     --smoke --dry-run
 ```

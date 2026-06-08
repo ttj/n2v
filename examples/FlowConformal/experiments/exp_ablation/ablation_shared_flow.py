@@ -33,9 +33,12 @@ from typing import List, Tuple
 import numpy as np
 import torch
 
-from n2v.probabilistic.verify_flow import (
-    _calibrate_flow_for_spec,
-    _verify_with_calibration,
+from n2v.nn import NeuralNetwork
+from n2v.probabilistic import FlowReachConfig
+from n2v.sets import Box
+from n2v.utils.verify_specification import (
+    ProbVerifyConfig,
+    verify_specification,
 )
 
 _OUT_DIR = Path(__file__).resolve().parent / 'outputs'
@@ -43,7 +46,7 @@ _PROBE_SEED = 47
 _DEFAULT_N_INSTANCES = 20
 
 _METHODS = (
-    'scenario', 'scenario_v2', 'amls', 'is_tilted', 'derived',
+    'scenario', 'amls', 'is_tilted',
     'amls_bounded', 'amls_bounded_union', 'raw_mc_uniform',
 )
 
@@ -220,10 +223,24 @@ def main():
                 print(f'  box {box_idx}/{len(boxes)-1}')
                 t0 = time.time()
                 try:
-                    calib = _calibrate_flow_for_spec(
-                        network, lb, ub, spec,
-                        seed=_PROBE_SEED,
-                        **calib_kwargs,
+                    net_wrapped = NeuralNetwork(network)
+                    input_box = Box(
+                        np.asarray(lb).flatten(),
+                        np.asarray(ub).flatten(),
+                    )
+                    prob_set = net_wrapped.reach(
+                        input_box, method='flow_matching',
+                        config=FlowReachConfig(
+                            epsilon=calib_kwargs['alpha'],
+                            n_train=calib_kwargs['n_train'],
+                            flow_epochs=calib_kwargs['flow_epochs'],
+                            flow_config=calib_kwargs['flow_config'],
+                            seed=_PROBE_SEED,
+                        ),
+                    )
+                    cov = prob_set.estimate_coverage(
+                        network, input_box, n_test=2_000,
+                        seed=_PROBE_SEED + 2_000_000,
                     )
                 except Exception as e:
                     err = f'calibrate {type(e).__name__}: {e}'
@@ -240,23 +257,33 @@ def main():
                         writers[method].writerow(row); files[method].flush()
                     continue
                 calib_s = time.time() - t0
-                q = calib['q']
-                cov = calib['coverage_empirical']
+                q = prob_set.threshold
                 print(f'    calibrate ok in {calib_s:.1f}s  '
                       f'q={q:.4f}  cov={cov:.4f}')
+
+                # AMLS-bounded / raw-MC require an eps_2 target; legacy
+                # ablation pipeline defaulted this to alpha. Mirror that
+                # as a fallback, but honor an explicit override so the η
+                # ablation knob is actually live.
+                eps_2_target = calib_kwargs.get(
+                    'amls_bounded_eps_2_target', calib_kwargs['alpha'])
 
                 for method in args.methods:
                     tv = time.time()
                     try:
-                        res = _verify_with_calibration(
-                            calib,
-                            verification_method=method,
-                            scenario_seed=_PROBE_SEED,
-                            **verify_kwargs,
+                        result = verify_specification(
+                            prob_set, spec,
+                            config=ProbVerifyConfig(
+                                method=method,
+                                n_samples=verify_kwargs['scenario_n_samples'],
+                                beta=verify_kwargs['scenario_beta'],
+                                seed=_PROBE_SEED,
+                                amls_bounded_eps_2_target=eps_2_target,
+                            ),
                         )
-                        verdict = res['verdict']
-                        eps_total = res.get('epsilon_total')
-                        eps_2_b = res.get('amls_bounded_eps_2_upper')
+                        verdict = result.verdict
+                        eps_total = result.epsilon_total
+                        eps_2_b = result.amls_bounded_eps_2_upper
                         err = ''
                     except Exception as e:
                         verdict = 'ERROR'

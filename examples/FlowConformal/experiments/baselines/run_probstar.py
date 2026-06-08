@@ -7,7 +7,7 @@ invoked via subprocess from the n2v env's runners (mirrors how
 
 Should be invoked with the ``starv`` conda env's python:
 
-    /home/sasakis/miniconda3/envs/starv/bin/python \\
+    python \\
         examples/FlowConformal/experiments/baselines/run_probstar_standalone.py \\
         --onnx_path <path>.onnx \\
         --vnnlib_path <path>.vnnlib \\

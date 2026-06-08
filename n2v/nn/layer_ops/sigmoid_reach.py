@@ -14,7 +14,6 @@ activation functions (Sigmoid, Tanh) parameterized by:
   - df0: derivative at inflection point (x=0)
 """
 
-import warnings
 import numpy as np
 from typing import List, Optional, Callable
 from n2v.sets import Star, Zono
@@ -193,7 +192,7 @@ def _s_curve_single_star_approx(
     # Case classification
     convex_mask = l >= 0       # Case 1
     concave_mask = u <= 0      # Case 2
-    mixed_mask = (l < 0) & (u > 0)  # Case 3
+    (l < 0) & (u > 0)  # Case 3
 
     # Secant slope for all
     secant_slope = (fu - fl) / (u - l)

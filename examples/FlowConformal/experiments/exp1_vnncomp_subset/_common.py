@@ -1,8 +1,7 @@
 """Shared utilities for Exp 1 VNN-COMP benchmark sweeps (our method only).
 
 Generic instance loader + sweep loop, parameterised by benchmark root
-directory. Mirrors examples/FlowConformal/ablations/acasxu_sweep.py but
-abstracts over benchmarks where:
+directory. Abstracts over benchmarks where:
 
   - ONNX input shape may not be (batch, 5) but (batch, N) or (batch, C, H, W).
   - VNN-LIB ``prop`` may be a single HalfSpace, a list[HalfSpace], or
@@ -12,30 +11,24 @@ abstracts over benchmarks where:
 Sound-verifier comparisons are done at analysis time against VNN-COMP's
 public ``vnncomp2025_results/`` CSVs, not by re-running third-party tools.
 
-Locked Phase 5d config — do not change without coordinating with the
-ACAS Xu sweep, which is the reference comparand.
+The constants below are the locked paper config; do not change without
+coordinating with the cross-benchmark comparands.
 """
 from __future__ import annotations
 
 import csv
-import json
-import os
-import signal
-import sys
-import time
 from pathlib import Path
 
 import numpy as np
 import torch
 import torch.nn as nn
 
-from examples.FlowConformal.benchmarks._common import run_verification_pipeline
 from n2v.sets.halfspace import HalfSpace
 from n2v.utils import load_vnnlib
 from n2v.utils.model_loader import load_onnx
 
 
-# >>> Locked Phase 5d config (matches acasxu_sweep.py) <<<
+# >>> Locked paper config <<<
 _FLOW_CONFIG = 'base'
 _N_TRAIN = 5_000
 _FLOW_EPOCHS = 2_000
@@ -451,201 +444,3 @@ def load_instance(benchmark_root: Path, onnx_rel: str, vnn_rel: str):
 
     spec = _normalize_spec(prop['prop'])
     return network, boxes, spec
-
-
-# ---------------------------------------------------------------------------
-# Pipeline runner (per-instance)
-# ---------------------------------------------------------------------------
-
-def _fmt(v, spec):
-    """Format helper: '' for None, else format. Mirrors acasxu_sweep."""
-    return f'{v:{spec}}' if v is not None else ''
-
-
-def run_one_instance(benchmark_root: Path, onnx_rel: str, vnn_rel: str,
-                     *, seed: int) -> dict:
-    """Run our pipeline on one instance. Returns a row dict; never
-    raises (load/run failures become ERROR rows so the outer loop logs
-    them and continues).
-    """
-    try:
-        network, boxes, spec = load_instance(benchmark_root, onnx_rel, vnn_rel)
-    except NotImplementedError as e:
-        return {'verdict': 'SKIPPED',
-                'error': f'{type(e).__name__}: {e}'}
-    except Exception as e:
-        return {'verdict': 'ERROR',
-                'error': f'loadfailed {type(e).__name__}: {e}'}
-
-    box_results = []
-    for box_idx, (lb, ub) in enumerate(boxes):
-        try:
-            r = run_verification_pipeline(
-                network=network,
-                input_lb=lb, input_ub=ub, spec=spec,
-                alpha=_ALPHA,
-                n_train=_N_TRAIN, flow_epochs=_FLOW_EPOCHS,
-                flow_config=_FLOW_CONFIG,
-                scenario_n_samples=_SCENARIO_N, scenario_beta=0.001,
-                verification_method=_VERIFICATION_METHOD,
-                seed=seed + 7919 * box_idx,
-            )
-        except NotImplementedError as e:
-            return {'verdict': 'SKIPPED',
-                    'error': f'{type(e).__name__}: {e}'}
-        except TimeoutError:
-            raise
-        except Exception as e:
-            return {'verdict': 'ERROR',
-                    'error': f'runfailed box={box_idx} {type(e).__name__}: {e}'}
-        box_results.append(r)
-        if r['verdict'] == 'SAT':
-            break
-
-    verdicts = [r['verdict'] for r in box_results]
-    if 'SAT' in verdicts:
-        result = next(r for r in box_results if r['verdict'] == 'SAT')
-    elif all(v == 'UNSAT' for v in verdicts):
-        result = box_results[0]
-        if len(box_results) > 1:
-            eps_sum = sum((r.get('epsilon_total') or 0.0) for r in box_results)
-            delta_min = min((r.get('delta_total') or 1.0) for r in box_results)
-            result = dict(result)
-            result['epsilon_total'] = eps_sum
-            result['delta_total'] = delta_min
-    else:
-        result = next(r for r in box_results if r['verdict'] == 'UNKNOWN')
-
-    cex_x, cex_y = '', ''
-    if result.get('counterexample') is not None:
-        ce = result['counterexample']
-        cex_x = json.dumps(np.asarray(ce['x']).tolist())
-        cex_y = json.dumps(np.asarray(ce['y']).tolist())
-    amls_lvls = result.get('amls_levels_used')
-    return {
-        'verdict': result['verdict'],
-        'coverage': _fmt(result.get('coverage_empirical'), '.4f'),
-        'q': _fmt(result.get('q'), '.4f'),
-        'epsilon_total': _fmt(result.get('epsilon_total'), '.4f'),
-        'delta_total': _fmt(result.get('delta_total'), '.4f'),
-        'train_s': _fmt(result.get('flow_train_time_s'), '.1f'),
-        'verify_s': _fmt(result.get('verification_time_s'), '.1f'),
-        'total_s': _fmt(result.get('total_time_s'), '.1f'),
-        'amls_levels_used': str(amls_lvls) if amls_lvls is not None else '',
-        'cex_x': cex_x, 'cex_y': cex_y,
-        'error': '',
-    }
-
-
-# ---------------------------------------------------------------------------
-# Sweep loop
-# ---------------------------------------------------------------------------
-
-def _raise_timeout(signum, frame):
-    raise TimeoutError()
-
-
-def run_sweep(
-    benchmark_name: str,
-    benchmark_root: Path,
-    out_csv: Path,
-    n_seeds: int = 1,
-    smoke_n_instances: 'int | None' = None,
-    per_instance_timeout_s: int = VNNCOMP_TIMEOUT_S,
-):
-    """Generic sweep loop. Writes one CSV row per (instance, seed).
-
-    Args:
-        benchmark_name: Short name (only used in log messages).
-        benchmark_root: Path to the benchmark dir containing
-            ``instances.csv``, ``onnx/``, ``vnnlib/``.
-        out_csv: Output path; parent dir must exist.
-        n_seeds: How many seeds to run per instance (use >1 for variance
-            estimates; 1 is fine for the comparison study).
-        smoke_n_instances: If set, sweep only the first N instances.
-        per_instance_timeout_s: SIGALRM budget per instance. Defaults to
-            the VNN-COMP 116 s.
-    """
-    instances_csv = benchmark_root / 'instances.csv'
-    if not instances_csv.exists():
-        print(f'instances.csv not found at {instances_csv}', file=sys.stderr)
-        sys.exit(2)
-
-    instances = parse_instances_csv(instances_csv)
-    if smoke_n_instances is not None:
-        instances = instances[:smoke_n_instances]
-    print(f'[{benchmark_name}] Loaded {len(instances)} instances '
-          f'(seeds={n_seeds}); writing to {out_csv}', flush=True)
-    print(f'[{benchmark_name}] Config: flow_config={_FLOW_CONFIG} '
-          f'n_train={_N_TRAIN} flow_epochs={_FLOW_EPOCHS} alpha={_ALPHA} '
-          f'method={_VERIFICATION_METHOD} timeout={per_instance_timeout_s}s',
-          flush=True)
-
-    fields = ['benchmark', 'onnx_file', 'vnnlib_file', 'seed', 'verdict',
-              'coverage', 'q', 'epsilon_total', 'delta_total',
-              'train_s', 'verify_s', 'total_s', 'amls_levels_used',
-              'cex_x', 'cex_y', 'error']
-
-    signal.signal(signal.SIGALRM, _raise_timeout)
-    counts = {}
-    t_start = time.time()
-
-    with open(out_csv, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=fields)
-        writer.writeheader()
-        f.flush()
-        total = len(instances) * n_seeds
-        k = 0
-        for (onnx_rel, vnn_rel, vnncomp_t) in instances:
-            # Per-instance timeout: prefer the VNN-COMP value from
-            # ``instances.csv`` (column 3) so ours adheres to the same
-            # budget the sound verifiers got. Fall back to the runner's
-            # ``per_instance_timeout_s`` only if the CSV value is missing
-            # or non-positive.
-            instance_timeout_s = (
-                vnncomp_t if isinstance(vnncomp_t, int) and vnncomp_t > 0
-                else per_instance_timeout_s
-            )
-            for seed_idx in range(n_seeds):
-                k += 1
-                # Per-instance seed: same instance + same seed_idx => same
-                # result; different across instances.
-                base = hash((onnx_rel, vnn_rel)) & 0x7FFFFFFF
-                instance_seed = (base + seed_idx * 31337) & 0x7FFFFFFF
-                elapsed = time.time() - t_start
-                print(f'[{benchmark_name} {k}/{total} t={elapsed:.0f}s '
-                      f'budget={instance_timeout_s}s] '
-                      f'{onnx_rel} + {vnn_rel} (seed_idx={seed_idx})',
-                      flush=True)
-                t0 = time.time()
-                try:
-                    signal.alarm(instance_timeout_s)
-                    row = run_one_instance(benchmark_root, onnx_rel, vnn_rel,
-                                           seed=instance_seed)
-                except TimeoutError:
-                    row = {'verdict': 'TIMEOUT',
-                           'error': f'per-instance timeout '
-                                    f'{instance_timeout_s}s'}
-                finally:
-                    signal.alarm(0)
-
-                out_row = {fld: '' for fld in fields}
-                out_row['benchmark'] = benchmark_name
-                out_row['onnx_file'] = Path(onnx_rel).name
-                out_row['vnnlib_file'] = Path(vnn_rel).name
-                out_row['seed'] = seed_idx
-                for k2, v in row.items():
-                    out_row[k2] = v
-                writer.writerow(out_row)
-                f.flush()
-
-                v = row['verdict']
-                counts[v] = counts.get(v, 0) + 1
-                print(f'    verdict={v}  wall={time.time() - t0:.1f}s',
-                      flush=True)
-
-    print(f'\n[{benchmark_name}] === Sweep complete ===')
-    print(f'[{benchmark_name}] Wrote {out_csv}')
-    print(f'[{benchmark_name}] Total wall-clock: '
-          f'{(time.time() - t_start) / 60:.1f} min')
-    print(f'[{benchmark_name}] Counts: {counts}')

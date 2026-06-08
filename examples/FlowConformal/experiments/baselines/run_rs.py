@@ -30,8 +30,8 @@ If missing, the cifar10_resnet110 instance loader raises FileNotFoundError
 and the runner emits a TODO and exits gracefully.
 
 Usage:
-    cd /home/sasakis/v/tools/n2v
-    /home/sasakis/miniconda3/envs/n2v/bin/python -u -m \\
+    cd /path/to/n2v
+    python -u -m \\
         examples.FlowConformal.experiments.baselines.run_rs \\
         --benchmark cifar10_resnet110 --smoke
 """

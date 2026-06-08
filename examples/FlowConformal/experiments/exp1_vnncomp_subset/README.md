@@ -49,6 +49,9 @@ exp1_vnncomp_subset/
 ├── _benchmarks.py                         per-benchmark loader dispatch + hparam config
 ├── exp1_run_ours.py                       single ours runner (--benchmark X)
 ├── exp1_run_hashemi_clipping.py           single Hashemi runner (--benchmark X)
+├── exp1_run_hashemi_clipping_pca.py       PCA-projected Hashemi clipping variant
+├── exp1_run_probstar.py                   ProbStar baseline runner
+├── exp1_run_saver.py                      SAVER baseline runner
 ├── ground_truth.csv                       pre-computed VNN-COMP consensus (run-once)
 └── outputs/                               per-(benchmark, tool) CSVs land here
 ```
@@ -76,8 +79,8 @@ respectively).
 ## Smoke
 
 ```bash
-cd /home/sasakis/v/tools/n2v
-PY=/home/sasakis/miniconda3/envs/n2v/bin/python
+cd /path/to/n2v
+PY=python
 for bench in acasxu_2023 collins_rul_cnn_2022 dist_shift_2023 \
              linearizenn_2024 tllverify_2023 malbeware \
              metaroom_2023; do

@@ -177,10 +177,10 @@ confidence guarantees:
 
 .. code-block:: python
 
-   from n2v.probabilistic import verify
+   from n2v.probabilistic import conformal_reach
 
-   prob_box = verify(model, input_box, m=8000, epsilon=0.001)
-   print(prob_box.guarantee)  # ConformalGuarantee with coverage and confidence
+   prob_box = conformal_reach(model, input_box, m=8000, epsilon=0.001)
+   print(prob_box)  # __repr__ shows coverage and confidence metadata
 
 Common Operations
 -----------------

@@ -162,19 +162,19 @@ The full benchmark consists of 186 instances (prop_1-4: 45 each, prop_5-10: 1 ea
 | Tool | SAT | UNSAT | Timeout/Error | Solved | Solve Rate |
 |------|-----|-------|---------------|--------|------------|
 | **alpha-beta-CROWN** | 47 | 139 | 0 | 186 | **100%** |
-| **n2v** | 39 | 83 | 64 | 122 | **65.6%** |
+| **n2v** | 38 | 85 | 63 | 123 | **66.1%** |
 | **NNV** | 39 | 71 | 76 | 110 | **59.1%** |
 
 **n2v experimental setup:**
 - Algorithm: `random+pgd` falsification → exact Star reachability (two-stage approx→exact for prop_3/4)
 - Timeout: 120s per instance
 - Hardware: Intel Xeon Gold 6238R (56 cores), 504GB RAM, Ubuntu 22.04
-- Version: commit `abeb40d`
+- Version: commit `11589dd`
 
 **Notes:**
 - alpha-beta-CROWN and NNV results are from VNN-COMP 2025 [1]
 - different hardware was used for the competition than for n2v results shown above
-- n2v and NNV find the same 39 SAT instances; n2v verifies 12 more UNSAT instances than NNV
+- n2v and NNV find the same 37 SAT instances; n2v verifies 14 more UNSAT instances than NNV
 - alpha-beta-CROWN solves all instances including 45 prop_1 cases that timeout for n2v/NNV
 
 ## References

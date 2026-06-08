@@ -29,9 +29,11 @@ Usage:
     result, cex = falsify(model, lb, ub, property, method='random+pgd')
 """
 
+from typing import List, Optional, Tuple, Union
+
 import numpy as np
 import torch
-from typing import Union, List, Optional, Tuple, Literal
+
 from n2v.sets.halfspace import HalfSpace
 
 

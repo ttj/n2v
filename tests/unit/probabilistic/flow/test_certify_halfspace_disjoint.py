@@ -6,27 +6,11 @@ import pytest
 import torch
 
 from n2v.sets.halfspace import HalfSpace
-from n2v.probabilistic.flow.model import VelocityField
-from n2v.probabilistic.flow.ode import FlowODE
-from n2v.probabilistic.flow.train import train_flow
+
+from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
 
 
-def _train_small_2d_flow(seed: int = 0) -> FlowODE:
-    """Small 2D flow trained on N(0, I_2) (toy; output distribution is Gaussian)."""
-    torch.manual_seed(seed)
-    device = torch.device('cpu')
-    vf = VelocityField(dim=2, hidden=64, n_layers=2,
-                       activation='silu', time_embed='concat').to(device)
-    rng = np.random.default_rng(seed)
-    y_train = torch.from_numpy(rng.standard_normal((2000, 2)).astype(np.float32))
-    vf, _ = train_flow(vf, y_train, n_epochs=200, batch_size=512, lr=1e-3,
-                      coupling='sinkhorn', sinkhorn_reg='auto',
-                      sinkhorn_iters=5, use_ema=True,
-                      standardize_outputs=False, time_sampling='uniform')
-    vf.eval()
-    return FlowODE(vf)
-
-
+@pytest.mark.slow
 def test_certify_halfspace_disjoint_returns_disjoint_for_unreachable_polyhedron():
     """Polyhedron entirely outside the unit-ball flow set should be
     certified disjoint."""
@@ -42,6 +26,7 @@ def test_certify_halfspace_disjoint_returns_disjoint_for_unreachable_polyhedron(
     assert result.epsilon_2 == pytest.approx(math.log(1000) / 500, rel=1e-6)
 
 
+@pytest.mark.slow
 def test_certify_halfspace_disjoint_returns_not_disjoint_for_reachable_polyhedron():
     """Polyhedron overlapping the flow set should return disjoint=False
     with a sample inside."""
@@ -58,6 +43,7 @@ def test_certify_halfspace_disjoint_returns_not_disjoint_for_reachable_polyhedro
     assert (hs.G @ result.worst_sample).flatten()[0] <= hs.g.flatten()[0]
 
 
+@pytest.mark.slow
 def test_certify_halfspace_disjoint_multirow_and_semantics():
     """Multi-row HalfSpace encodes AND. For a 2-row AND where each row
     individually could be violated but their intersection is empty, the
@@ -75,6 +61,7 @@ def test_certify_halfspace_disjoint_multirow_and_semantics():
     assert result.disjoint is True
 
 
+@pytest.mark.slow
 def test_certify_halfspace_disjoint_epsilon_2_formula():
     """epsilon_2 = log(1/beta_2) / n_samples for any HalfSpace."""
     from n2v.probabilistic.flow.scenario_verify import certify_halfspace_disjoint
@@ -88,6 +75,7 @@ def test_certify_halfspace_disjoint_epsilon_2_formula():
         assert r.epsilon_2 == pytest.approx(math.log(1/beta) / N, rel=1e-6)
 
 
+@pytest.mark.slow
 def test_certify_halfspace_disjoint_joint_tighter_than_per_row():
     """The load-bearing case: a 2-row HalfSpace where EACH row is
     individually reachable (per-row loop would see violations), but

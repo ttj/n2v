@@ -22,11 +22,14 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 import numpy as np
 
 from n2v.sets.star import Star
+
+if TYPE_CHECKING:
+    import torch
 
 
 logger = logging.getLogger(__name__)
@@ -622,7 +625,7 @@ def compute_mc_bbox(
     output_dim: int,
     n_samples: int = 5000,
     pad: float = 1.0,
-) -> Tuple['torch.Tensor', 'torch.Tensor']:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """Bounding box covering the reach set, constructed from forward samples.
 
     Draws ``n_samples`` uniform points from the L-infinity input ball around

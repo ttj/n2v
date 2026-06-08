@@ -14,8 +14,8 @@ network, and runs DKW on the output samples for each unsafe disjunct.
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    cd /path/to/n2v
+    python -m \\
         examples.FlowConformal.experiments.exp2_prob_scale.exp2_run_saver \\
         --benchmark cifar100_2024 --smoke
 """
@@ -31,6 +31,9 @@ from pathlib import Path
 import numpy as np
 import torch
 
+from examples.FlowConformal.experiments._runner_utils import (
+    append_csv_row_with_defaults,
+)
 from examples.FlowConformal.experiments.exp2_prob_scale._benchmarks import (
     EXP2_BENCHMARKS,
     list_instances,
@@ -116,17 +119,12 @@ def _run_one_idx(idx: int, instances, process_one, benchmark: str):
 
 
 def _write_timeout_row(out_csv, benchmark, name, timeout_s):
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader(); f.flush()
-        row = {f: '' for f in _FIELDS}
-        row.update({'benchmark': benchmark, 'instance': name,
-                    'verdict': 'TIMEOUT', 'timeout_s': timeout_s,
-                    'error': 'shell timeout (run_cell.sh exit 124)',
-                    'timestamp': _now_iso()})
-        writer.writerow(row); f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'benchmark': benchmark, 'instance': name,
+        'verdict': 'TIMEOUT', 'timeout_s': timeout_s,
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 def main():

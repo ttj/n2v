@@ -95,7 +95,7 @@ python 05_integration.py
 ### Basic Usage
 
 ```python
-from n2v.probabilistic import verify
+from n2v.probabilistic import conformal_reach
 from n2v.sets import Box
 import numpy as np
 
@@ -109,7 +109,7 @@ ub = np.ones(5)
 input_set = Box(lb, ub)
 
 # Run verification
-result = verify(
+result = conformal_reach(
     model=model,
     input_set=input_set,
     m=1000,           # Calibration samples
@@ -188,7 +188,7 @@ These scenarios **require** probabilistic verification:
 
 ```
 n2v/probabilistic/
-├── verify.py                 # Main entry point
+├── conformal_reach.py        # Main entry point
 ├── conformal.py              # Conformal inference primitives
 ├── surrogates/
 │   ├── naive.py              # Center-based surrogate

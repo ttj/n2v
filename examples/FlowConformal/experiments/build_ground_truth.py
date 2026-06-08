@@ -20,8 +20,8 @@ because any one valid counterexample flips the answer to SAT.
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    cd /path/to/n2v
+    python -m \\
         examples.FlowConformal.experiments.build_ground_truth
 
 Writes:

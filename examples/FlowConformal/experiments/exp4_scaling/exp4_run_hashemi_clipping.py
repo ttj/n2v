@@ -4,7 +4,7 @@ One script invocation iterates the 10 instances at a given depth and
 writes one CSV row per instance under
 ``examples/FlowConformal/experiments/exp4_scaling/outputs/exp4_d<D>_hashemi_clipping.csv``.
 
-Uses :func:`n2v.probabilistic.verify` directly (in-process, n2v env)
+Uses :func:`n2v.probabilistic.conformal_reach` directly (in-process, n2v env)
 since Hashemi-clipping needs the network as a Python callable, not via
 ONNX/vnnlib subprocess. Verdict-derivation logic mirrors Exp 1's
 Hashemi-clipping runner: halfspace-vs-box disjointness check + a
@@ -16,15 +16,15 @@ the FUR signal Exp 1 measures, but on synthetic networks at scale.
 
 Usage::
 
-    cd /home/sasakis/v/tools/n2v
+    cd /path/to/n2v
 
     # Smoke (1 instance at depth 2):
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    python -m \\
         examples.FlowConformal.experiments.exp4_scaling.exp4_run_hashemi_clipping \\
         --depth 2 --smoke
 
     # Full sweep at depth 16:
-    nohup /home/sasakis/miniconda3/envs/n2v/bin/python -u -m \\
+    nohup python -u -m \\
         examples.FlowConformal.experiments.exp4_scaling.exp4_run_hashemi_clipping \\
         --depth 16 \\
         > examples/FlowConformal/experiments/exp4_scaling/outputs/exp4_d16_hashemi_clipping.log 2>&1 &
@@ -43,9 +43,11 @@ from typing import Any, Dict
 import numpy as np
 import torch
 
+from examples.FlowConformal.experiments._runner_utils import (
+    append_csv_row_with_defaults,
+)
 from examples.FlowConformal.experiments.baselines._common import (
     halfspace_disjoint_from_box,
-    torch_callable,
 )
 from examples.FlowConformal.experiments.exp4_scaling._benchmarks import (
     load_instances,
@@ -54,7 +56,8 @@ from examples.FlowConformal.experiments.exp4_scaling.networks import (
     EXP4_DEPTHS,
     EXP4_WIDTH,
 )
-from n2v.probabilistic import verify
+from n2v.nn import NeuralNetwork
+from n2v.nn.reach import ConformalReachConfig
 from n2v.sets import Box
 
 _SEED = 47
@@ -80,18 +83,13 @@ def _now_iso() -> str:
 
 
 def _write_timeout_row(out_csv, depth, instance_idx, timeout_s):
-    file_exists = out_csv.exists() and out_csv.stat().st_size > 0
-    with open(out_csv, 'a' if file_exists else 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=_FIELDS)
-        if not file_exists:
-            writer.writeheader(); f.flush()
-        row = {_f: '' for _f in _FIELDS}
-        row.update({'depth': depth, 'instance_idx': instance_idx,
-                    'method': 'hashemi_clipping', 'verdict': 'TIMEOUT',
-                    'timeout_s': timeout_s,
-                    'error': 'shell timeout (run_cell.sh exit 124)',
-                    'timestamp': _now_iso()})
-        writer.writerow(row); f.flush()
+    append_csv_row_with_defaults(out_csv, _FIELDS, {
+        'depth': depth, 'instance_idx': instance_idx,
+        'method': 'hashemi_clipping', 'verdict': 'TIMEOUT',
+        'timeout_s': timeout_s,
+        'error': 'shell timeout (run_cell.sh exit 124)',
+        'timestamp': _now_iso(),
+    })
 
 
 def _run_one_instance(inst: dict, *, seed: int) -> Dict[str, Any]:
@@ -102,16 +100,15 @@ def _run_one_instance(inst: dict, *, seed: int) -> Dict[str, Any]:
     ub = np.asarray(inst['ub']).flatten()
 
     input_set = Box(lb, ub)
-    model_fn = torch_callable(network)
+    net = NeuralNetwork(network)
     try:
-        pbox = verify(
-            model=model_fn,
-            input_set=input_set,
-            m=_M, ell=_ELL,
-            epsilon=_EPSILON,
-            surrogate='clipping_block',
-            seed=seed,
-            verbose=False,
+        pbox = net.reach(
+            input_set, method='conformal',
+            config=ConformalReachConfig(
+                m=_M, ell=_ELL, epsilon=_EPSILON,
+                surrogate='clipping_block',
+                seed=seed, verbose=False,
+            ),
         )
     except Exception as e:
         return {'verdict': 'ERROR',

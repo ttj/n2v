@@ -315,7 +315,10 @@ def _process_and(tline: str, ast: Dict) -> Tuple[Dict, str]:
             params -= 1
             tline = tline[1:].strip()
         else:
-            raise ValueError("We may be doing something wrong while processing the AND statement or the property is currently not supported.")
+            raise ValueError(
+                "We may be doing something wrong while processing the AND statement "
+                "or the property is currently not supported."
+            )
 
     return temp_ast, tline
 

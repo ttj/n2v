@@ -251,13 +251,8 @@ PER_BENCHMARK_CONFIG: Dict[str, Dict[str, Any]] = {
 # ----- per-benchmark loader dispatch -----
 
 def _load_acasxu_instance(root: Path, onnx_rel: str, vnn_rel: str):
-    """Use the ACAS Xu wrapper that bakes in input normalisation.
-
-    Mirrors :func:`examples.FlowConformal.ablations.acasxu_sweep._load_instance`
-    so the new ``exp1_run_ours.py --benchmark acasxu_2023`` produces
-    bit-identical results to ``acasxu_sweep.py``.
-    """
-    from examples.FlowConformal.benchmarks.test_acasxu_single import (
+    """Use the ACAS Xu wrapper that bakes in input normalisation."""
+    from examples.FlowConformal.benchmarks.demo_acasxu_single import (
         _ACASXuWrapper, _extract_spec,
     )
     from n2v.utils import load_vnnlib

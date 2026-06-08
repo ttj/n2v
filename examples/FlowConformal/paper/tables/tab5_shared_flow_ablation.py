@@ -19,7 +19,7 @@ Bolding:
 
 Run with::
 
-    /home/sasakis/miniconda3/envs/n2v/bin/python -m \\
+    python -m \\
         examples.FlowConformal.paper.tables.tab5_shared_flow_ablation
 """
 from __future__ import annotations

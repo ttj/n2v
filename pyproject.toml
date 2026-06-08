@@ -18,6 +18,17 @@ dependencies = [
     "scipy>=1.7.0",
     "torch>=2.0.0",
     "cvxpy>=1.2.0",
+    # Set representations:
+    #   networkx: required by Hexatope (imported unconditionally via n2v/sets/hexatope.py)
+    "networkx>=2.6",
+    # Flow-conformal pipeline:
+    #   torchdiffeq: required by FlowODE / log-det score modules
+    "torchdiffeq>=0.2.3",
+    # ONNX model loading:
+    #   onnx: required by n2v/utils/model_loader.py
+    #   onnx2torch is the user's fork installed from third_party/onnx2torch
+    #   (see README installation step 2). It is NOT a PyPI dependency.
+    "onnx>=1.12.0",
 ]
 
 [project.optional-dependencies]

@@ -21,8 +21,16 @@ These tests check that:
 - `layer_ops/` - Tests for layer operations (Linear, ReLU, Conv2D, MaxPool2D, AvgPool2D, Flatten)
 - `core/` - Tests for dispatcher and parallel processing
 - `utils/` - Tests for VNN-LIB parsing and differentiable solvers
-- `probabilistic/` - Tests for probabilistic verification (conformal inference, surrogates, verify)
+- `probabilistic/` - Tests for probabilistic verification (conformal inference, surrogates, conformal_reach); includes `probabilistic/flow/` for flow-matching reach (AMLS, importance sampling, calibration, scenario verification)
 - `integration/` - Integration tests for complete workflows
+- `experiments/` - Tests for paper-experiment runners
+- `vnncomp/` - Tests for VNN-COMP harness infrastructure
+
+In addition to the subdirectories, `tests/unit/` and the top-level
+`tests/integration/` directory contain a handful of test files that
+exercise cross-cutting infrastructure (fx tracing, model preprocessing,
+parallel regions, prepared instances, reach precomputed, run instance,
+strategy dispatch).
 
 ### 2. Soundness Tests (`soundness/`)
 

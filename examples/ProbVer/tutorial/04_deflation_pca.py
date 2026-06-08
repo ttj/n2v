@@ -4,7 +4,7 @@
 This script demonstrates DeflationPCA for handling high-dimensional outputs:
 1. Why standard PCA fails when samples << dimensions
 2. How deflation-based PCA works
-3. Using PCA with verify() for image segmentation-like outputs
+3. Using PCA with conformal_reach() for image segmentation-like outputs
 """
 
 import numpy as np
@@ -211,21 +211,21 @@ When NOT needed:
     print(f"  Deflation PCA:       {t}×{n_large} = {t*n_large*8/1e6:.1f} MB")
 
     # =========================================================================
-    # Part 7: Using PCA with verify()
+    # Part 7: Using PCA with conformal_reach()
     # =========================================================================
     print("\n" + "=" * 70)
-    print("PART 7: USING PCA WITH verify()")
+    print("PART 7: USING PCA WITH conformal_reach()")
     print("=" * 70)
 
     print("""
-The verify() function has a pca_components parameter that automatically
+The conformal_reach() function has a pca_components parameter that automatically
 applies DeflationPCA when output dimensions are high.
 
 Example usage:
 ```python
-result = verify(
+result = conformal_reach(
     model=segmentation_model,
-    input_set=input_box,
+    input_box=input_box,
     m=5000,
     epsilon=0.01,
     surrogate='clipping_block',
@@ -240,7 +240,7 @@ back to the original space. This is approximate and may be conservative.
     # Demonstrate with a simple example
     import torch
     import torch.nn as nn
-    from n2v.probabilistic import verify
+    from n2v.probabilistic import conformal_reach
     from n2v.sets import Box
 
     # Create a model with "high-dimensional" output
@@ -261,10 +261,10 @@ back to the original space. This is approximate and may be conservative.
     ub = np.ones(10)
     input_set = Box(lb, ub)
 
-    print("\nRunning verify() WITHOUT PCA (500-dim output)...")
-    result_no_pca = verify(
+    print("\nRunning conformal_reach() WITHOUT PCA (500-dim output)...")
+    result_no_pca = conformal_reach(
         model=model_fn,
-        input_set=input_set,
+        input_box=input_set,
         m=200,
         epsilon=0.05,
         surrogate='naive',
@@ -274,10 +274,10 @@ back to the original space. This is approximate and may be conservative.
     width_no_pca = np.mean(result_no_pca.ub - result_no_pca.lb)
     print(f"  Average bound width: {width_no_pca:.4f}")
 
-    print("\nRunning verify() WITH PCA (reduce to 50 dimensions)...")
-    result_with_pca = verify(
+    print("\nRunning conformal_reach() WITH PCA (reduce to 50 dimensions)...")
+    result_with_pca = conformal_reach(
         model=model_fn,
-        input_set=input_set,
+        input_box=input_set,
         m=200,
         epsilon=0.05,
         surrogate='naive',
@@ -307,7 +307,7 @@ HOW IT WORKS:
 - Deflates (removes) each found direction before finding the next
 - Memory: O(t × n) instead of O(n²)
 
-WITH verify():
+WITH conformal_reach():
 - Set pca_components parameter
 - Conformal inference runs in reduced space
 - Bounds transformed back to original space (approximate)

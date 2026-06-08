@@ -59,8 +59,8 @@ See `docs/plans/2026-04-27-paper-experiments-design.md` (Experiment 3).
 Smoke (1 seed, reduced training):
 
 ```bash
-cd /home/sasakis/v/tools/n2v
-/home/sasakis/miniconda3/envs/n2v/bin/python -u -m \
+cd /path/to/n2v
+python -u -m \
     examples.FlowConformal.experiments.exp3_synthetic.exp3_run_ours \
     --benchmark 3d_banana --score flow --spec unsat --smoke
 ```

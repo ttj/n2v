@@ -7,25 +7,10 @@ import torch
 
 from n2v.sets.halfspace import HalfSpace
 
-
-def _train_small_2d_flow(seed: int = 0):
-    """Same helper as in test_certify_halfspace_disjoint.py."""
-    from n2v.probabilistic.flow.model import VelocityField
-    from n2v.probabilistic.flow.ode import FlowODE
-    from n2v.probabilistic.flow.train import train_flow
-    torch.manual_seed(seed)
-    vf = VelocityField(dim=2, hidden=64, n_layers=2,
-                       activation='silu', time_embed='concat')
-    rng = np.random.default_rng(seed)
-    y_train = torch.from_numpy(rng.standard_normal((2000, 2)).astype(np.float32))
-    vf, _ = train_flow(vf, y_train, n_epochs=200, batch_size=512, lr=1e-3,
-                      coupling='sinkhorn', sinkhorn_reg='auto',
-                      sinkhorn_iters=5, use_ema=True,
-                      standardize_outputs=False, time_sampling='uniform')
-    vf.eval()
-    return FlowODE(vf)
+from tests.unit.probabilistic.flow._helpers import _train_small_2d_flow
 
 
+@pytest.mark.slow
 def test_adaptive_n_escalates_when_margin_is_marginal():
     """When the worst-sample's max-row-margin is small (i.e., certification
     was marginal at N=200), the function should re-run with the larger N
@@ -73,6 +58,7 @@ def test_adaptive_n_escalates_when_margin_is_marginal():
     assert r_adapt.epsilon_2 < r_small.epsilon_2 / 4
 
 
+@pytest.mark.slow
 def test_adaptive_n_does_not_escalate_when_margin_is_strong():
     """When the worst-sample's max-row-margin is well above the threshold
     (strong certification at small N), no escalation. Returns the small-N
@@ -93,6 +79,7 @@ def test_adaptive_n_does_not_escalate_when_margin_is_strong():
     assert r.epsilon_2 == pytest.approx(math.log(1000) / 500, rel=1e-6)
 
 
+@pytest.mark.slow
 def test_adaptive_n_returns_not_disjoint_without_escalation():
     """When the small-N run returns disjoint=False (some sample landed
     inside), there's no need to escalate. Return the small-N result."""

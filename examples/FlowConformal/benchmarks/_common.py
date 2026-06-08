@@ -1,80 +1,29 @@
-"""Shared pipeline runner for PoC benchmarks with curved output sets.
+"""Shared helpers for the FlowConformal benchmark scripts.
 
-Unlike golden-path (identity / rotated linear), these benchmarks have no
-analytical exact reach-set volume. The ground-truth 1-alpha probabilistic
-reachset volume is estimated from the Star-union pushforward:
+This module exposes two helpers used outside this file:
 
-    vol_exact(1-alpha) ~= (1 - alpha) * vol(Star_union)
+* :func:`exact_star_union_volume` — Star-union ground-truth volume of a
+  network's reach set on an L-inf input ball. Used by
+  ``exp3_synthetic/exact_volumes.py`` to compute exact volume references.
 
-because P_X is uniform on B(x_0, eps) and the Star union is the exact
-deterministic pushforward of that input box. The smallest 1-alpha reachset
-under a uniform distribution on a set is the set itself times (1-alpha)
-mass — this is the tightness floor any conformal score is measured against.
+* :func:`run_verification_pipeline` — backward-compat wrapper around the
+  new three-stage flow-conformal verification API. Used by
+  ``demo_acasxu_single.py`` and the ``exp1_vnncomp_subset`` /
+  ``exp2_prob_scale`` per-experiment helpers. New code should call the
+  library API directly (``NeuralNetwork.reach(method='flow_matching')``
+  + ``verify_specification(...)``).
 
-Compares hyperrect / ball / flow scores against the Star-union reference.
-
-Backward-compat shim
-====================
-
-This module also acts as a thin backward-compatibility shim for the
-flow-conformal+AMLS verification pipeline, which now lives in
-``n2v.probabilistic.verify_flow``. The shim re-exports the moved
-internals and overrides ``run_verification_pipeline`` to default
-``use_falsifier=True`` so existing example scripts (acasxu_sweep.py,
-phase5c_probe_sweep.py, etc.) keep producing the same results.
-
-For new code, prefer the library API:
-
-    from n2v.probabilistic import verify_flow
-    result = verify_flow(network=..., ..., use_falsifier=False)
+For analytical-ground-truth benchmarks (identity, rotated linear) see
+the sibling ``_common_analytical.py``.
 """
 from __future__ import annotations
 
-import math
-import time
-from dataclasses import dataclass
-from pathlib import Path
-
 import numpy as np
-import torch
 
 from examples.FlowConformal.utils import compute_exact_reach
-from n2v.probabilistic.flow.calibrate import calibrate
-from n2v.probabilistic.flow.logdet_scores import LogDetFlowScore  # noqa: F401 (available to callers)
-from n2v.probabilistic.flow.sampling import sample_l_inf_ball
-from n2v.probabilistic.flow.scores import BallScore, FlowScore, HyperrectScore
-from n2v.probabilistic.flow.sets import ProbabilisticSet
 from n2v.sets.volume import (
     compute_mc_bbox, exact_volume_2d, star_union_volume_mc,
 )
-from n2v.sets.halfspace import HalfSpace
-# Re-export the moved verify_flow internals so legacy callers (ablation
-# scripts, tests) that imported these as ``examples.FlowConformal.benchmarks._common.<name>``
-# continue to work. The implementations now live in n2v.
-from n2v.probabilistic.verify_flow import (  # noqa: F401
-    _MaxEnsembleFlowScore,
-    _WhitenedNetwork,
-    _WhiteningFlowScore,
-    _certify_spec_on_flow_v2,
-    _extract_min_worst_max_margin,
-    _flow_unsat_pipeline,
-    _forward,
-    _sat_result,
-    _train_flow,
-    _train_flow_tight,
-    _whiten_halfspace,
-    run_verification_pipeline as _verify_flow_pipeline,
-)
-
-
-@dataclass
-class MethodResult:
-    name: str
-    threshold: float
-    volume: float
-    volume_se: float
-    empirical_coverage: float
-    fit_time_s: float
 
 
 def exact_star_union_volume(net, x_center: np.ndarray, radius: float,
@@ -105,161 +54,14 @@ def exact_star_union_volume(net, x_center: np.ndarray, radius: float,
     return float(ve.mean), stars
 
 
-def run_pipeline(
-    net,
-    x_center: np.ndarray,
-    radius: float,
-    output_dim: int,
-    star_union_volume: float,
-    alpha: float = 0.01,
-    n_train: int = 10_000,
-    n_calib: int = 2_000,
-    n_test: int = 2_000,
-    seed: int = 0,
-    flow_epochs: int = 2000,
-    n_mc_volume: int = 400_000,
-    flow_config: str = 'base',
-    infer_solver: str = 'rk4',
-    infer_atol: float = 1e-5,
-    infer_rtol: float = 1e-5,
-    infer_steps: int = 30,
-    flow_score_class=FlowScore,
-    flow_score_infer_batch_size: int = 65536,
-) -> dict:
-    """Run the flow-conformal pipeline.
-
-    flow_config:
-      'base'  — hidden=128, L=4, concat time, uniform time (original).
-      'tight' — hidden=256, L=6, sinusoidal time, logit-normal time
-                (experiment (c)+(e)).
-    infer_solver / atol / rtol / steps:
-      Control the ODE solver used when scoring y_calib, y_test and MC
-      samples. 'rk4' is a fast fixed-step solver (30 steps is plenty if the
-      flow has converged). 'dopri5' with atol/rtol ~ 1e-4 is 2-3x slower but
-      more accurate for a poorly-converged flow (experiment (d)).
-    flow_score_class: callable producing a NonconformityScore around the
-        trained flow. Defaults to the naive ``FlowScore``. Pass
-        ``LogDetFlowScore`` for the log-density-corrected variant.
-        The constructor is called with the same kwargs we currently pass
-        to FlowScore (t, n_steps, method, atol, rtol, batch_size).
-    flow_score_infer_batch_size: chunk size for score evaluations on MC
-        points. 65536 is the current production default; reduce if GPU
-        memory is tight.
-    """
-    ell = int(math.ceil((n_calib + 1) * (1 - alpha)))
-    torch.manual_seed(seed)
-    dim_in = x_center.shape[0]
-    x_center_t = torch.as_tensor(x_center, dtype=torch.float32)
-
-    x_tr = sample_l_inf_ball(
-        x_center=x_center_t, radius=radius, n_samples=n_train, seed=seed, dim=dim_in,
-    )
-    x_ca = sample_l_inf_ball(
-        x_center=x_center_t, radius=radius, n_samples=n_calib,
-        seed=seed + 1_000_000, dim=dim_in,
-    )
-    x_te = sample_l_inf_ball(
-        x_center=x_center_t, radius=radius, n_samples=n_test,
-        seed=seed + 2_000_000, dim=dim_in,
-    )
-    y_tr = _forward(net, x_tr)
-    y_ca = _forward(net, x_ca)
-    y_te = _forward(net, x_te)
-
-    y_all = torch.cat([y_tr, y_ca, y_te], dim=0)
-    lo = y_all.min(dim=0).values
-    hi = y_all.max(dim=0).values
-    pad = 0.05 * (hi - lo).clamp(min=1e-6)
-    bbox = (lo - pad, hi + pad)
-
-    results: list[MethodResult] = []
-    for name, builder in (
-        ('hyperrect', lambda: HyperrectScore(
-            center=y_ca.mean(dim=0),
-            scales=y_ca.std(dim=0).clamp(min=1e-8),
-        )),
-        ('ball', lambda: BallScore(center=y_ca.mean(dim=0))),
-    ):
-        t0 = time.time()
-        score_fn = builder()
-        thresh = calibrate(score_fn(y_ca), ell).item()
-        s = ProbabilisticSet(
-            score_fn=score_fn, threshold=thresh,
-            m=n_calib, ell=ell, epsilon=alpha, dim=output_dim,
-        )
-        vol, se = s.estimate_volume(n_samples=n_mc_volume, bounding_box=bbox)
-        cov = s.contains(y_te).float().mean().item()
-        results.append(MethodResult(
-            name=name, threshold=thresh, volume=vol, volume_se=se,
-            empirical_coverage=cov, fit_time_s=time.time() - t0,
-        ))
-
-    # Flow
-    t0 = time.time()
-    if flow_config == 'base':
-        flow = _train_flow(y_tr, output_dim, flow_epochs, seed)
-    elif flow_config == 'tight':
-        flow = _train_flow_tight(y_tr, output_dim, flow_epochs, seed)
-    else:
-        raise ValueError(f"unknown flow_config {flow_config!r}")
-    train_time = time.time() - t0
-
-    score_fn = flow_score_class(
-        flow, t=1.0, n_steps=infer_steps, method=infer_solver,
-        batch_size=flow_score_infer_batch_size,
-        atol=infer_atol, rtol=infer_rtol,
-    )
-    t1 = time.time()
-    thresh = calibrate(score_fn(y_ca), ell).item()
-    s = ProbabilisticSet(
-        score_fn=score_fn, threshold=thresh,
-        m=n_calib, ell=ell, epsilon=alpha, dim=output_dim,
-    )
-    vol, se = s.estimate_volume(n_samples=n_mc_volume, bounding_box=bbox)
-    cov = s.contains(y_te).float().mean().item()
-    infer_time = time.time() - t1
-    results.append(MethodResult(
-        name='flow', threshold=thresh, volume=vol, volume_se=se,
-        empirical_coverage=cov, fit_time_s=train_time + infer_time,
-    ))
-
-    return {
-        'results': results,
-        'bbox': bbox,
-        'y_train': y_tr, 'y_calib': y_ca, 'y_test': y_te,
-        'star_union_volume': star_union_volume,
-        'alpha': alpha,
-        'flow_train_time_s': train_time,
-        'flow_infer_time_s': infer_time,
-    }
-
-
-def print_report(bundle: dict):
-    results = bundle['results']
-    su = bundle['star_union_volume']
-    alpha = bundle['alpha']
-    floor = (1 - alpha) * su  # tightness floor for any 1-alpha reachset
-    print(f"\n  Star-union volume      = {su:.4f}")
-    print(f"  (1-alpha)*Star-union   = {floor:.4f}  <- tightness floor")
-    print(f"  alpha = {alpha}  coverage floor = {1 - alpha}")
-    print(f"  {'method':<10} {'vol':>10} {'+/-SE':>10} {'vol/floor':>10} "
-          f"{'cov':>8} {'fit(s)':>8}")
-    for r in results:
-        ratio = r.volume / floor if floor > 0 else float('nan')
-        print(f"  {r.name:<10} {r.volume:>10.4f} {r.volume_se:>10.4f} "
-              f"{ratio:>10.3f} {r.empirical_coverage:>8.4f} {r.fit_time_s:>8.1f}")
-    print(f"  (flow: train {bundle['flow_train_time_s']:.1f}s, "
-          f"infer {bundle['flow_infer_time_s']:.1f}s)")
-
-
 # --- Verification pipeline shim ---------------------------------------
 #
-# The flow-conformal+AMLS verification pipeline implementation now lives
-# in :mod:`n2v.probabilistic.verify_flow`. The function below is a thin
-# backward-compat wrapper that defaults ``use_falsifier=True`` so existing
-# example scripts (acasxu_sweep.py, phase5c_probe_sweep.py, etc.) keep
-# producing the same falsifier-on-by-default behavior they were built
-# against. New code should prefer the n2v library API directly.
+# Thin backward-compat wrapper around the three-stage flow-conformal +
+# AMLS pipeline (``net.reach(method='flow_matching')`` +
+# ``verify_specification(...)``). Defaults ``use_falsifier=True`` so the
+# legacy example scripts keep producing the same falsifier-on-by-default
+# behavior they were built against. New code should prefer the n2v
+# library API directly.
 
 
 def run_verification_pipeline(
@@ -269,26 +71,89 @@ def run_verification_pipeline(
     spec,
     *,
     use_falsifier: bool = True,  # legacy default (Stage-1 falsifier ON)
-    **kwargs,
+    alpha: float = 0.001,
+    n_train: int = 10_000,
+    flow_epochs: int = 5000,
+    flow_config: str = 'tight',
+    scenario_n_samples: int = 10_000,
+    verification_method: str = 'scenario',
+    amls_max_levels: int = 30,
+    amls_bounded_eps_2_target: float | None = None,
+    seed: int = 0,
+    falsifier_method: str = 'apgd',
+    falsifier_n_restarts: int = 10,
+    falsifier_n_steps: int = 100,
+    **_unused_kwargs,  # absorb any legacy-only kwargs gracefully
 ) -> dict:
-    """Backward-compat shim around :func:`n2v.probabilistic.verify_flow`.
+    """Backward-compat shim that delegates to the new three-stage API.
+
+    Bridges existing demo scripts (e.g. ``demo_acasxu_single.py``) to
+    the post-refactor public API: ``NeuralNetwork.reach(method='flow_matching')``
+    + ``verify_specification(...)``. Re-attaches the legacy-only result
+    keys (``spec_summary``, ``epsilon_1``/``delta_1``,
+    ``epsilon_2``/``delta_2``) by reading from the returned
+    ``ProbabilisticSet``, so callers that printed those fields keep
+    working unchanged.
 
     Defaults ``use_falsifier=True`` to preserve the falsifier-on-by-
-    default behavior expected by existing example scripts. The library
-    API at ``n2v.probabilistic.verify_flow.run_verification_pipeline``
-    defaults ``use_falsifier=False``.
-
-    For new code prefer:
-
-        from n2v.probabilistic import verify_flow
-        result = verify_flow(network=..., ..., use_falsifier=False)
+    default behavior these scripts were built against. (The new public
+    API ``net.reach(method='flow_matching')`` does NOT run a falsifier;
+    callers wire it explicitly via :func:`n2v.utils.falsify.falsify`
+    before the reach call.)
     """
-    return _verify_flow_pipeline(
-        network=network,
-        input_lb=input_lb,
-        input_ub=input_ub,
-        spec=spec,
+    from examples.FlowConformal.experiments._shared_flow_runner import (
+        run_flow_pipeline,
+    )
+    from n2v.utils.verify_specification import spec_summary
+
+    cfg = dict(
+        alpha=alpha,
+        n_train=n_train,
+        flow_epochs=flow_epochs,
+        flow_config=flow_config,
+        scenario_n_samples=scenario_n_samples,
+        verification_method=verification_method,
+        amls_max_levels=amls_max_levels,
+        amls_bounded_eps_2_target=amls_bounded_eps_2_target,
         use_falsifier=use_falsifier,
-        **kwargs,
+        falsifier_method=falsifier_method,
+        falsifier_n_restarts=falsifier_n_restarts,
+        falsifier_n_steps=falsifier_n_steps,
+    )
+    result = run_flow_pipeline(
+        network,
+        np.asarray(input_lb).flatten(),
+        np.asarray(input_ub).flatten(),
+        spec, cfg, seed=seed,
     )
 
+    # Legacy-compat: re-attach fields the old result dict carried.
+    result['spec_summary'] = spec_summary(spec)
+    pset = result.get('prob_set')
+    if pset is not None:
+        # Conformal layer guarantee.
+        result['epsilon_1'] = pset.epsilon
+        result['delta_1'] = 1.0 - pset.confidence
+        # Verification layer: scenario_beta default in the shared helper
+        # is 0.001 (matches paper config); recover delta_2.
+        result['delta_2'] = 0.999
+        # epsilon_2 is method-dependent and not always populated; derive
+        # from joint if both layers' epsilon are known.
+        if result.get('epsilon_total') is not None:
+            eps_total = result['epsilon_total']
+            eps_1 = pset.epsilon
+            # epsilon_total = 1 - (1 - eps_1)(1 - eps_2) → solve for eps_2.
+            try:
+                result['epsilon_2'] = 1.0 - (1.0 - eps_total) / (1.0 - eps_1)
+            except ZeroDivisionError:
+                result['epsilon_2'] = None
+        else:
+            result['epsilon_2'] = None
+    else:
+        # SAT short-circuit path: no flow trained, no per-layer guarantees.
+        result['epsilon_1'] = None
+        result['delta_1'] = None
+        result['epsilon_2'] = None
+        result['delta_2'] = None
+
+    return result

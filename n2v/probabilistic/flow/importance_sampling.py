@@ -97,10 +97,28 @@ def _push_through_flow(
     atol: float,
     rtol: float,
 ) -> torch.Tensor:
+    # Move ``z`` onto whichever device ``flow_ode`` currently lives on
+    # (sibling certify functions — amls / amls_bounded / raw_mc_uniform —
+    # mutate ``flow_ode`` device in-place, so a shared-flow ablation
+    # sweep may have left it on CUDA before this call). Returns result on
+    # CPU so downstream numpy conversion is safe.
+    #
+    # Test doubles may not be nn.Module instances (no .parameters()); in
+    # that case we leave ``z`` on its current device and trust the mock.
+    flow_device = None
+    if hasattr(flow_ode, 'parameters'):
+        try:
+            flow_device = next(flow_ode.parameters()).device
+        except StopIteration:
+            flow_device = None
+    if flow_device is not None:
+        z = z.to(flow_device)
     with torch.no_grad():
-        return flow_ode.inverse(
-            z, t=t, n_steps=n_steps, method=method, atol=atol, rtol=rtol,
+        y = flow_ode.inverse(
+            z, t=t, n_steps=n_steps,
+            method=method, atol=atol, rtol=rtol,
         )
+    return y.detach().cpu() if isinstance(y, torch.Tensor) else y
 
 
 def is_tilted_estimate_halfspace_mass(

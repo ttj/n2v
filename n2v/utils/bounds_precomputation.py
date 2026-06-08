@@ -14,7 +14,7 @@ These bounds are passed to Star reachability to skip LP calls for stable neurons
 import numpy as np
 import torch
 import torch.nn as nn
-from typing import Dict, List, Tuple, Union, Optional, Any
+from typing import Dict, Tuple, Union, Optional, Any
 
 from n2v.sets import Star, Zono, Box
 from n2v.sets.image_star import ImageStar
@@ -54,7 +54,10 @@ def compute_intermediate_bounds(
 # IBP (Interval Bound Propagation) — fast, works for any model
 # ============================================================================
 
-def _compute_bounds_ibp(model: nn.Module, input_set: Union[Star, Zono, Box, ImageStar, ImageZono]) -> Dict[Union[int, str], Tuple[np.ndarray, np.ndarray]]:
+def _compute_bounds_ibp(
+    model: nn.Module,
+    input_set: Union[Star, Zono, Box, ImageStar, ImageZono],
+) -> Dict[Union[int, str], Tuple[np.ndarray, np.ndarray]]:
     """
     Compute bounds via Interval Bound Propagation.
 
@@ -102,7 +105,12 @@ def _ibp_linear(lb: np.ndarray, ub: np.ndarray, weight: np.ndarray, bias: Option
     return new_lb, new_ub
 
 
-def _ibp_conv(lb: np.ndarray, ub: np.ndarray, layer: Union[nn.Conv2d, nn.Conv1d], input_shape: tuple) -> Tuple[np.ndarray, np.ndarray, tuple]:
+def _ibp_conv(
+    lb: np.ndarray,
+    ub: np.ndarray,
+    layer: Union[nn.Conv2d, nn.Conv1d],
+    input_shape: tuple,
+) -> Tuple[np.ndarray, np.ndarray, tuple]:
     """IBP through Conv2d/Conv1d using PyTorch (handles padding, stride, dilation)."""
     # Reshape to NCHW/NCW
     lb_t = torch.tensor(lb.reshape(input_shape), dtype=torch.float64).unsqueeze(0)
@@ -156,7 +164,12 @@ def _ibp_tanh(lb: np.ndarray, ub: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return np.tanh(lb), np.tanh(ub)
 
 
-def _ibp_pool(lb: np.ndarray, ub: np.ndarray, layer: Union[nn.MaxPool2d, nn.AvgPool2d], spatial_shape: tuple) -> Tuple[np.ndarray, np.ndarray, tuple]:
+def _ibp_pool(
+    lb: np.ndarray,
+    ub: np.ndarray,
+    layer: Union[nn.MaxPool2d, nn.AvgPool2d],
+    spatial_shape: tuple,
+) -> Tuple[np.ndarray, np.ndarray, tuple]:
     """IBP through MaxPool2d/AvgPool2d."""
     lb_t = torch.tensor(lb.reshape(spatial_shape), dtype=torch.float64).unsqueeze(0)
     ub_t = torch.tensor(ub.reshape(spatial_shape), dtype=torch.float64).unsqueeze(0)
@@ -181,7 +194,12 @@ def _ibp_pool(lb: np.ndarray, ub: np.ndarray, layer: Union[nn.MaxPool2d, nn.AvgP
     return new_lb.numpy().flatten(), new_ub.numpy().flatten(), new_lb.shape
 
 
-def _ibp_batchnorm(lb: np.ndarray, ub: np.ndarray, layer: Union[nn.BatchNorm1d, nn.BatchNorm2d], spatial_shape: tuple) -> Tuple[np.ndarray, np.ndarray, tuple]:
+def _ibp_batchnorm(
+    lb: np.ndarray,
+    ub: np.ndarray,
+    layer: Union[nn.BatchNorm1d, nn.BatchNorm2d],
+    spatial_shape: tuple,
+) -> Tuple[np.ndarray, np.ndarray, tuple]:
     """IBP through BatchNorm (affine: y = gamma * (x - mean) / std + beta)."""
     # BN in eval mode is just an affine transform per channel
     mean = layer.running_mean.detach().double().numpy()
@@ -210,7 +228,12 @@ def _ibp_batchnorm(lb: np.ndarray, ub: np.ndarray, layer: Union[nn.BatchNorm1d, 
     return new_lb.flatten(), new_ub.flatten(), new_lb.shape
 
 
-def _ibp_sequential(model: nn.Module, lb: np.ndarray, ub: np.ndarray, spatial_shape: Optional[tuple] = None) -> Dict[int, Tuple[np.ndarray, np.ndarray]]:
+def _ibp_sequential(
+    model: nn.Module,
+    lb: np.ndarray,
+    ub: np.ndarray,
+    spatial_shape: Optional[tuple] = None,
+) -> Dict[int, Tuple[np.ndarray, np.ndarray]]:
     """IBP for Sequential models."""
     layer_bounds = {}
 
@@ -229,7 +252,12 @@ def _ibp_sequential(model: nn.Module, lb: np.ndarray, ub: np.ndarray, spatial_sh
     return layer_bounds
 
 
-def _ibp_graphmodule(graph_module: Any, lb: np.ndarray, ub: np.ndarray, spatial_shape: Optional[tuple] = None) -> Dict[str, Tuple[np.ndarray, np.ndarray]]:
+def _ibp_graphmodule(
+    graph_module: Any,
+    lb: np.ndarray,
+    ub: np.ndarray,
+    spatial_shape: Optional[tuple] = None,
+) -> Dict[str, Tuple[np.ndarray, np.ndarray]]:
     """IBP for GraphModule (ONNX-converted) models."""
     import operator
 
@@ -280,7 +308,12 @@ def _ibp_graphmodule(graph_module: Any, lb: np.ndarray, ub: np.ndarray, spatial_
     return layer_bounds
 
 
-def _ibp_propagate_layer(layer: nn.Module, lb: np.ndarray, ub: np.ndarray, spatial_shape: Optional[tuple]) -> Tuple[np.ndarray, np.ndarray, Optional[tuple]]:
+def _ibp_propagate_layer(
+    layer: nn.Module,
+    lb: np.ndarray,
+    ub: np.ndarray,
+    spatial_shape: Optional[tuple],
+) -> Tuple[np.ndarray, np.ndarray, Optional[tuple]]:
     """Propagate IBP bounds through a single layer. Returns (lb, ub, spatial_shape)."""
 
     if isinstance(layer, nn.Linear):
@@ -365,10 +398,12 @@ def _ibp_propagate_layer(layer: nn.Module, lb: np.ndarray, ub: np.ndarray, spati
 # Zonotope pre-pass — tighter bounds, expensive for large inputs
 # ============================================================================
 
-def _compute_bounds_zono(model: nn.Module, input_set: Union[Star, Zono, Box, ImageStar, ImageZono]) -> Dict[Union[int, str], Tuple[np.ndarray, np.ndarray]]:
+def _compute_bounds_zono(
+    model: nn.Module,
+    input_set: Union[Star, Zono, Box, ImageStar, ImageZono],
+) -> Dict[Union[int, str], Tuple[np.ndarray, np.ndarray]]:
     """Compute bounds using Zonotope propagation."""
     import torch.fx as fx
-    from n2v.nn.layer_ops.dispatcher import reach_layer
 
     zono_set = _convert_to_zono(input_set)
 

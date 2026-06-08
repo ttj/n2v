@@ -83,17 +83,17 @@ inference to compute output bounds with formal statistical guarantees:
 
 .. code-block:: python
 
-   from n2v.probabilistic import verify
+   from n2v.probabilistic import conformal_reach
 
-   prob_box = verify(
+   prob_box = conformal_reach(
        model,
        input_box,
        m=8000,        # calibration samples
        epsilon=0.001,  # miscoverage level
    )
 
-   print(f"Coverage: {prob_box.guarantee.coverage}")
-   print(f"Confidence: {prob_box.guarantee.confidence}")
+   print(f"Coverage: {prob_box.coverage}")
+   print(f"Confidence: {prob_box.confidence}")
    print(f"Bounds: [{prob_box.lb.flatten()}, {prob_box.ub.flatten()}]")
 
 **When to use:** Large networks where deterministic methods are infeasible.

@@ -6,47 +6,6 @@ by a single Python script that reads CSV inputs from a configurable
 directory and writes a paper-ready output (`.png` for figures, `.tex`
 for tables).
 
-## Layout
-
-```
-paper/
-├── _common.py                       # shared CSV / styling helpers + sound-verifier lists
-├── figures/
-│   ├── _common.py                   # matplotlib styling helpers
-│   ├── flow_matching_training/      # pre-rendered overlay + heavyweight training script
-│   │   ├── fig_training_progression.py
-│   │   ├── fig_training_progression_checkpoints.pt
-│   │   └── overlay.png
-│   ├── fig1_flow_training_progression.py
-│   ├── fig2_exp1_runtime.py
-│   ├── fig3_exp2_runtime.py
-│   ├── fig4_score_vs_dim.py            # original log-y line plot
-│   ├── fig4a_score_vs_dim_linear.py    # linear-y, value-clipped variant
-│   ├── fig5_scaling.py                 # original log-log
-│   ├── fig5a_scaling_linear.py         # linear-y variant
-│   ├── fig5b_scaling_semilog.py        # log-log variant (renamed from old fig5)
-│   ├── fig6_ablation_grid.py           # legacy combined 3-panel
-│   ├── fig6a_ablation_amls_hparam.py   # split panel a
-│   ├── fig6b_ablation_conformal_params.py   # split panel b
-│   ├── fig6c_ablation_flow_training.py # split panel c
-│   ├── fig7_banana_score_geometries.py # 2D banana score-overlay (standalone, trains a flow)
-│   └── fig*.png                     # generated outputs (committed for convenience)
-├── tables/
-│   ├── _common.py
-│   ├── tab1_exp1_verdict_matrix.py     # 4 sound verifiers + 4 prob baselines + ours
-│   ├── tab2_exp2_verdict_matrix.py     # only αβ-CROWN among sound + 4 prob + ours
-│   ├── tab3_verify_method_ablation.py
-│   ├── tab_score_vs_dim.py             # alternative to fig4
-│   ├── tab_amls_hparam.py              # ρ × MCMC false-UNSAT counts
-│   ├── tab_conformal_params.py         # one row per (knob, value)
-│   ├── tab_flow_training.py            # n_train × flow_epochs grid
-│   ├── tab_exp1_runtime.py             # alternative to fig2
-│   ├── tab_exp2_runtime.py             # alternative to fig3
-│   └── tab*.tex                     # generated LaTeX fragments
-├── regenerate_all.py                # one-shot regenerator (auto-discovers scripts)
-└── README.md                        # this file
-```
-
 ## Methodology change (2026-04 paper revision)
 
 - **Marabou is dropped from all references.** Sound verifiers for
@@ -93,20 +52,17 @@ python -m examples.FlowConformal.paper.figures.fig4a_score_vs_dim_linear \
 
 ## Regenerating everything
 
-```bash
-# Pass over a real-results directory (--csv-dir required):
-python examples/FlowConformal/paper/regenerate_all.py --csv-dir <path>
+Paper scripts do NOT share a single flag interface: most table scripts
+read CSVs from multiple experiments (`--exp1-csv-dir`, `--exp2-csv-dir`,
+`--vnncomp-dir`), `fig4_exp4_scaling.py` takes a single `--csv-dir`, and
+`fig5_exp3_volume_comparison.py` / `tab5_shared_flow_ablation.py` take
+no CSV flag at all (they read hard-coded experiment-output paths). Run
+each script with `--help` to see its specific flags; the table below
+maps each one to its canonical experiment outputs.
 
-# List discovered scripts (no execution):
-python examples/FlowConformal/paper/regenerate_all.py --list
-
-# Skip the heavyweight banana visualization (trains a flow):
-python examples/FlowConformal/paper/regenerate_all.py --csv-dir <path> \
-    --skip fig7_banana_score_geometries.py
-```
-
-The runner auto-discovers any new ``tab*.py`` / ``fig*.py`` placed in
-``tables/`` / ``figures/`` and aborts if any one of them fails.
+A bulk-regen helper used to live here (`regenerate_all.py`) but assumed
+a single shared `--csv-dir`, which is wrong for 7 of 8 scripts. It was
+removed; invoke scripts individually.
 
 ## Real-data paths
 
@@ -162,20 +118,15 @@ Either:
 
 ## Saved-data audit
 
-CSV outputs of `run_verification_pipeline` now include the
-``amls_levels_used`` column (number of adaptive AMLS levels actually
-run; blank when verification_method != 'amls'). Updated:
-
-- `examples/FlowConformal/ablations/acasxu_sweep.py`
-- `examples/FlowConformal/experiments/exp1_vnncomp_subset/_common.py`
-- `examples/FlowConformal/experiments/exp2_prob_scale/_common.py`
-- `examples/FlowConformal/experiments/exp3_synthetic/exp3_run_*.py`
-- `examples/FlowConformal/experiments/exp_ablation/_common.py`
-- `examples/FlowConformal/CSV_SCHEMAS.md`
-
-The underlying value comes from `AMLSResult.levels_used` — already
-exposed in the `run_verification_pipeline` result dict at key
-``amls_levels_used``.
+CSV outputs of the runners include the ``amls_levels_used`` column
+(number of adaptive AMLS levels actually run; blank when
+``verification_method != 'amls*'``). The value originates from
+``AMLSResult.levels_used`` and is exposed as
+``VerificationResult.amls_levels_used`` by
+``verify_specification``'s probabilistic dispatch (after the
+post-NeurIPS cleanup refactor) and as a same-named CSV column by the
+shared runner helper at
+``examples/FlowConformal/experiments/_shared_flow_runner.py``.
 
 ## Style conventions
 

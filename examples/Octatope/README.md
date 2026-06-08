@@ -33,6 +33,18 @@ python compare_small.py --epsilon 0.02  # tighter input region
 
 Runs multiple configurations with LP and MCF solvers. Reports reach time, bounds extraction time, bound widths, and overhead vs Star exact.
 
+### `compare_mnist.py` — Level 3: MNIST FC Network
+
+`fc_mnist_small` model (784->32->16->10), Star (exact/approx) vs Hexatope (approx).
+
+```bash
+python compare_mnist.py
+python compare_mnist.py --epsilon 0.01
+python compare_mnist.py --layers 1        # only first layer (fast)
+```
+
+Exercises the Hexatope `intersect_half_space` (Algorithm 5.1) bottleneck at MNIST scale (784 generators).
+
 ## Solver API
 
 Hexatope/Octatope methods require an explicit `solver` parameter:
