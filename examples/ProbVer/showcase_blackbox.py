@@ -17,7 +17,7 @@ import torch.nn as nn
 import time
 import os
 
-from n2v.probabilistic import verify
+from n2v.probabilistic import conformal_reach
 from n2v.sets import Box
 
 
@@ -91,9 +91,9 @@ but probabilistic verification works seamlessly.
 
     print("\n--- Running Probabilistic Verification ---")
     start = time.time()
-    result = verify(
+    result = conformal_reach(
         model=ensemble_fn,
-        input_set=input_box,
+        input_box=input_box,
         m=1000,
         epsilon=0.05,
         surrogate='clipping_block',
@@ -162,9 +162,9 @@ Probabilistic verification handles ANY layer.
 
     print("\n--- Running Probabilistic Verification ---")
     start = time.time()
-    result = verify(
+    result = conformal_reach(
         model=softmax_fn,
-        input_set=input_box,
+        input_box=input_box,
         m=1000,
         epsilon=0.05,
         surrogate='clipping_block',
@@ -239,9 +239,9 @@ Probabilistic verification is the ONLY option.
     print("\n--- Running Probabilistic Verification ---")
     api.call_count = 0
     start = time.time()
-    result = verify(
+    result = conformal_reach(
         model=api.predict,
-        input_set=input_box,
+        input_box=input_box,
         m=500,
         epsilon=0.05,
         surrogate='clipping_block',
@@ -316,9 +316,9 @@ Probabilistic verification doesn't care!
 
     print("\n--- Running Probabilistic Verification ---")
     start = time.time()
-    result = verify(
+    result = conformal_reach(
         model=nondiff_fn,
-        input_set=input_box,
+        input_box=input_box,
         m=1000,
         epsilon=0.05,
         surrogate='clipping_block',
@@ -362,9 +362,9 @@ Probabilistic verification doesn't care!
             ax = axes[idx // 2, idx % 2]
 
             # Get result
-            res = verify(
+            res = conformal_reach(
                 model=model_fn,
-                input_set=ibox,
+                input_box=ibox,
                 m=500,
                 epsilon=0.05,
                 surrogate='naive',

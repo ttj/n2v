@@ -44,7 +44,7 @@ class ProbabilisticBox(Box):
         >>> print(f"Confidence: {pbox.confidence:.4f}")  # ~0.997
         >>>
         >>> # Works with verify_specification
-        >>> from n2v.utils import verify_specification
+        >>> from n2v.utils.verify_specification import verify_specification
         >>> result = verify_specification([pbox], property)
     """
 

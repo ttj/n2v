@@ -78,7 +78,7 @@ for star in output_stars:
 
 | Document | Description |
 |----------|-------------|
-| [docs/theoretical_foundations.md](docs/theoretical_foundations.md) | Mathematical details for all set types, layers, and relaxations |
+| [docs/theory/theoretical-foundations.md](docs/theory/theoretical-foundations.md) | Mathematical details for all set types, layers, and relaxations |
 | [docs/development_status.md](docs/development_status.md) | Feature inventory, layer support tables, and roadmap |
 | [docs/probabilistic_verification.md](docs/probabilistic_verification.md) | Conformal inference theory and API |
 | [docs/lp_solvers.md](docs/lp_solvers.md) | LP solver selection and comparison |
@@ -111,8 +111,14 @@ See [docs/development_status.md](docs/development_status.md) for the full layer 
 |--------|-----------|-------------|
 | `exact` | Sound and complete | Star splitting at nonlinear layers |
 | `approx` | Sound (over-approximate) | Triangle/S-curve relaxation, no splitting |
-| `probabilistic` | Coverage with confidence | Conformal inference, model-agnostic |
+| `conformal` | Probabilistic coverage with confidence | Surrogate-based conformal inference; model-agnostic |
+| `flow_matching` | Probabilistic coverage with confidence | Flow-matching + conformal calibration; model-agnostic |
+| `probabilistic` | Legacy alias | Calls `conformal` internally via the `_reach_probabilistic` branch |
 | `hybrid` | Mixed | Exact until threshold, then probabilistic fallback |
+
+The two probabilistic methods are also exposed as model-agnostic free
+functions (`n2v.conformal_reach`, `n2v.flow_reach`) for callers with
+non-PyTorch models (TensorFlow / JAX / ONNX session / any callable).
 
 ### Falsification
 

@@ -12,7 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 from n2v.sets import Star, ImageStar, ImageZono, Hexatope, Octatope
 
 logger = logging.getLogger(__name__)
@@ -79,7 +79,7 @@ def _maxpool2d_star_exact_single(
     # V is 4D: (H, W, C, nVar+1)
     V = pad_star.V
     h_in, w_in, c_in, n_cols = V.shape
-    n_pred = n_cols - 1
+    n_cols - 1
 
     # Get kernel size and stride (can be int, tuple, or list from onnx2torch)
     kernel_size = layer.kernel_size

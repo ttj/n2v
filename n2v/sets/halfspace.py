@@ -6,7 +6,6 @@ where G is a matrix and g is a vector.
 """
 
 import numpy as np
-from typing import Union
 
 
 class HalfSpace:

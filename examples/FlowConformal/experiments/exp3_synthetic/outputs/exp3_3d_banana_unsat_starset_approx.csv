@@ -1,0 +1,6 @@
+benchmark,spec_type,seed,verdict,wall_s,n_output_sets,starset_bbox_vol,volume_exact,volume_ratio,cex_x,cex_y,error,timestamp
+3d_banana,unsat,0,UNSAT,5.10,1,1.993450e+05,2.137253e+02,932.7160,,,,2026-05-06T18:13:57.591211+00:00
+3d_banana,unsat,1,UNSAT,3.53,1,1.282072e+05,2.137253e+02,599.8692,,,,2026-05-06T18:14:01.120496+00:00
+3d_banana,unsat,2,UNSAT,3.48,1,1.752537e+05,2.137253e+02,819.9954,,,,2026-05-06T18:14:04.602663+00:00
+3d_banana,unsat,3,UNSAT,3.47,1,1.768562e+05,2.137253e+02,827.4930,,,,2026-05-06T18:14:08.070436+00:00
+3d_banana,unsat,4,UNSAT,3.46,1,2.174770e+05,2.137253e+02,1017.5542,,,,2026-05-06T18:14:11.530529+00:00

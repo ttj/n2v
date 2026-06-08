@@ -1,0 +1,11 @@
+depth,width,n_params,instance_idx,method,verdict,wall_s,timeout_s,x_0_seed,eps,spec_threshold,empirical_max,ground_truth,amls_bounded_eps_2_upper,amls_levels_used,cex_x,cex_y,error,timestamp
+40,,,0,alpha_beta_crown,TIMEOUT,,300,,,,,,,,,,shell timeout (run_cell.sh exit 124),2026-05-03T17:57:08.120074+00:00
+40,,,1,alpha_beta_crown,TIMEOUT,,300,,,,,,,,,,shell timeout (run_cell.sh exit 124),2026-05-03T18:03:16.116442+00:00
+40,,,2,alpha_beta_crown,TIMEOUT,,300,,,,,,,,,,shell timeout (run_cell.sh exit 124),2026-05-03T18:09:24.199392+00:00
+40,,,3,alpha_beta_crown,TIMEOUT,,300,,,,,,,,,,shell timeout (run_cell.sh exit 124),2026-05-03T18:15:31.935506+00:00
+40,,,4,alpha_beta_crown,TIMEOUT,,300,,,,,,,,,,shell timeout (run_cell.sh exit 124),2026-05-03T18:21:40.029433+00:00
+40,,,5,alpha_beta_crown,TIMEOUT,,300,,,,,,,,,,shell timeout (run_cell.sh exit 124),2026-05-03T18:27:48.120884+00:00
+40,,,6,alpha_beta_crown,TIMEOUT,,300,,,,,,,,,,shell timeout (run_cell.sh exit 124),2026-05-03T18:33:56.066403+00:00
+40,,,7,alpha_beta_crown,TIMEOUT,,300,,,,,,,,,,shell timeout (run_cell.sh exit 124),2026-05-03T18:40:04.111200+00:00
+40,,,8,alpha_beta_crown,TIMEOUT,,300,,,,,,,,,,shell timeout (run_cell.sh exit 124),2026-05-03T18:46:12.094716+00:00
+40,,,9,alpha_beta_crown,TIMEOUT,,300,,,,,,,,,,shell timeout (run_cell.sh exit 124),2026-05-03T18:52:19.766199+00:00

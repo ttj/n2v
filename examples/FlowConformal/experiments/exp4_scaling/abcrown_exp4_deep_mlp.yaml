@@ -1,0 +1,41 @@
+# αβ-CROWN config for Exp 4 deep 1-Lipschitz ReLU MLPs.
+#
+# Tuned for the EXP4 family (width=512, depth ∈ {2, 4, 8, 16, 24, 32, 40},
+# 5-D input, 1-D output, halfspace spec).
+#
+# Modeled on αβ-CROWN's vnncomp21/acasxu.yaml (the closest-architecture
+# published config — small networks with low input dim and a halfspace
+# spec, just like our Exp 4 family). Adjustments:
+#
+#   * ``solver.batch_size: 4096`` — acasxu uses 16384 (huge, fits ACAS Xu's
+#     tiny 5-layer net). Our networks reach width=512 × depth=40, where
+#     each BaB level allocates O(batch_size × width × depth) memory; at
+#     batch_size=16384 this OOMs on a 24 GiB GPU at depth=24+. 4096 keeps
+#     us under budget at depth=40 while staying large enough to keep
+#     wall time competitive at shallow depths.
+#
+#   * ``attack.pgd_order: skip`` — Exp 4 measures pure sound-verification
+#     wall time. The ground truth is UNSAT-by-construction, so a PGD
+#     pre-attack would just burn time finding nothing.
+#
+# We keep ``bab.branching.method: naive`` + ``input_split.enable: True``
+# from acasxu — input-space branching is the right strategy for our
+# 5-dim input box. ``clip_input_domain`` also stays on (it's the
+# domain-pruning step that makes input-split tractable).
+
+solver:
+  batch_size: 1024
+  bound_prop_method: crown
+
+bab:
+  branching:
+    method: naive
+    input_split:
+      enable: True
+      reorder_bab: True
+  clip_n_verify:
+    clip_input_domain:
+      enabled: True
+
+attack:
+  pgd_order: skip

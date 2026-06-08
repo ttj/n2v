@@ -16,7 +16,6 @@ import numpy as np
 import torch.nn as nn
 
 from n2v.sets import Star, HalfSpace
-from n2v.sets.image_star import ImageStar
 from n2v.nn import NeuralNetwork
 from n2v.utils.verify_specification import verify_specification
 
@@ -204,7 +203,12 @@ def _verify_single_region(args: tuple) -> Dict:
         return {'result': verdict, 'counterexample': None}
 
     except Exception as e:
-        return {'result': 2, 'counterexample': None, 'error': str(e)}
+        from n2v.utils.verify_specification import VerificationResult
+        return {
+            'result': VerificationResult(verdict='UNKNOWN'),
+            'counterexample': None,
+            'error': str(e),
+        }
 
 
 def verify_regions_parallel(
@@ -264,7 +268,13 @@ def verify_regions_parallel(
     return _aggregate_results(per_region)
 
 
-def _verify_regions_sequential(model: nn.Module, regions: List[Tuple[np.ndarray, np.ndarray]], property_spec: Union[List, 'HalfSpace'], method: str, **kwargs: Dict) -> Dict:
+def _verify_regions_sequential(
+    model: nn.Module,
+    regions: List[Tuple[np.ndarray, np.ndarray]],
+    property_spec: Union[List, 'HalfSpace'],
+    method: str,
+    **kwargs: Dict,
+) -> Dict:
     """Sequential fallback for region verification."""
     per_region = []
     for lb, ub in regions:
@@ -274,7 +284,7 @@ def _verify_regions_sequential(model: nn.Module, regions: List[Tuple[np.ndarray,
         per_region.append(result)
 
         # Early termination on SAT
-        if result['result'] == 0:
+        if result['result'].verdict == 'SAT':
             return {
                 'result': 'sat',
                 'counterexample': result.get('counterexample'),
@@ -285,18 +295,23 @@ def _verify_regions_sequential(model: nn.Module, regions: List[Tuple[np.ndarray,
 
 
 def _aggregate_results(per_region: List[Dict]) -> Dict:
-    """Aggregate per-region results into overall verdict."""
-    verdicts = [r['result'] for r in per_region]
+    """Aggregate per-region results into overall verdict.
 
-    if 0 in verdicts:
+    Each per-region dict carries ``result`` as a
+    :class:`VerificationResult` (after the Phase 7 migration). The
+    aggregator dispatches on ``result.verdict``.
+    """
+    verdicts = [r['result'].verdict for r in per_region]
+
+    if 'SAT' in verdicts:
         # Any SAT -> overall SAT
-        sat_idx = verdicts.index(0)
+        sat_idx = verdicts.index('SAT')
         return {
             'result': 'sat',
             'counterexample': per_region[sat_idx].get('counterexample'),
             'per_region': per_region,
         }
-    elif all(v == 1 for v in verdicts):
+    elif all(v == 'UNSAT' for v in verdicts):
         # All UNSAT -> overall UNSAT
         return {
             'result': 'unsat',

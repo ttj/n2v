@@ -1,0 +1,2 @@
+depth,width,n_params,instance_idx,method,verdict,wall_s,train_s,verify_s,timeout_s,x_0_seed,eps,spec_threshold,empirical_max,ground_truth,coverage,q,epsilon_total,delta_total,amls_bounded_eps_2_upper,amls_bounded_detected_unsafe,amls_levels_used,cex_x,cex_y,error,timestamp
+2,512,3585,0,ours,UNSAT,65.9,52.5,13.1,300,15859557,0.1000,0.312342,-0.004720,unsat,0.9995,3.3503,0.0020,0.9960,3.1125e-30,False,30,,,,2026-06-05T14:11:45.104899+00:00

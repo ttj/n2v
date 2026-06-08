@@ -76,13 +76,13 @@ n2v provides two surrogate types:
 
 ## API Reference
 
-### Main Entry Point: `verify()`
+### Main Entry Point: `conformal_reach()`
 
 ```python
-from n2v.probabilistic import verify
+from n2v.probabilistic import conformal_reach
 from n2v.sets import Box
 
-result = verify(
+result = conformal_reach(
     model,           # Callable: numpy array -> numpy array
     input_set,       # Box specifying input region
     m=8000,          # Calibration samples (default: 8000)
@@ -155,7 +155,7 @@ result = net.reach(
 ```python
 import numpy as np
 import torch.nn as nn
-from n2v.probabilistic import verify
+from n2v.probabilistic import conformal_reach
 from n2v.sets import Box
 
 # Create a simple model
@@ -177,7 +177,7 @@ ub = np.ones(5)
 input_set = Box(lb, ub)
 
 # Run probabilistic verification
-result = verify(
+result = conformal_reach(
     model=model_fn,
     input_set=input_set,
     m=1000,
@@ -194,7 +194,7 @@ print(f"Confidence: {result.confidence:.4f}")
 
 ```python
 # Naive surrogate (simpler, potentially wider bounds)
-result_naive = verify(
+result_naive = conformal_reach(
     model=model_fn,
     input_set=input_set,
     m=1000,
@@ -203,7 +203,7 @@ result_naive = verify(
 )
 
 # Clipping block surrogate (tighter bounds)
-result_clipping = verify(
+result_clipping = conformal_reach(
     model=model_fn,
     input_set=input_set,
     m=1000,
@@ -225,7 +225,7 @@ print(f"Clipping width: {width_clipping:.4f}")
 For models with high-dimensional outputs (e.g., image segmentation), use dimensionality reduction:
 
 ```python
-result = verify(
+result = conformal_reach(
     model=model_fn,
     input_set=input_set,
     m=1000,
@@ -250,7 +250,7 @@ def api_model(x):
         responses.append(response.json()['output'])
     return np.array(responses)
 
-result = verify(
+result = conformal_reach(
     model=api_model,
     input_set=input_set,
     m=500,  # Fewer samples due to API costs
@@ -378,8 +378,9 @@ def compute_bounds(surrogate_lb, surrogate_ub, threshold, tau):
 
 ```
 n2v/probabilistic/
-├── __init__.py              # Exports: verify
-├── verify.py                # Main verify() function
+├── __init__.py              # Exports: conformal_reach, flow_reach
+├── conformal_reach.py       # Main conformal_reach() function
+├── flow/reach.py            # flow_reach() function
 ├── conformal.py             # Conformal inference primitives
 ├── surrogates/
 │   ├── __init__.py
@@ -396,8 +397,9 @@ n2v/sets/
 tests/unit/probabilistic/
 ├── test_probabilistic_box.py
 ├── test_conformal.py
+├── test_conformal_reach.py
+├── test_conformal_normalization.py
 ├── test_surrogates.py
-├── test_verify.py
 ├── test_deflation_pca.py
 └── test_integration.py
 

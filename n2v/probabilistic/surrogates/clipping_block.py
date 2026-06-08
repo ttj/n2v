@@ -9,7 +9,7 @@ tighter bounds than the naive approach by exploiting correlation structure.
 import logging
 import numpy as np
 from scipy.optimize import linprog
-from typing import Tuple, Optional
+from typing import Tuple
 from concurrent.futures import ProcessPoolExecutor
 import warnings
 

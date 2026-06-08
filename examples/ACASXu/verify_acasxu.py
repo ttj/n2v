@@ -24,7 +24,7 @@ import n2v
 from n2v.sets import Star, Zono, Box, Hexatope, Octatope
 from n2v.nn import NeuralNetwork
 from n2v.utils import load_vnnlib
-from n2v.utils.verify_specification import verify_specification
+from n2v.utils.verify_specification import VerificationResult, verify_specification
 from n2v.utils.model_loader import load_onnx
 
 
@@ -198,7 +198,7 @@ def verify_acasxu_property(network_file: str, property_file: str,
         print(f"   ✗ Reachability failed: {e}")
         import traceback
         traceback.print_exc()
-        return 2, time.time() - t_start, {
+        return VerificationResult(verdict='UNKNOWN'), time.time() - t_start, {
             'error': str(e),
             'set_type': set_type,
             'reach_method': reach_method,
@@ -220,20 +220,24 @@ def verify_acasxu_property(network_file: str, property_file: str,
         print(f"   ✗ Verification failed: {e}")
         import traceback
         traceback.print_exc()
-        return 2, time.time() - t_start, {'error': str(e)}
+        return VerificationResult(verdict='UNKNOWN'), time.time() - t_start, {
+            'error': str(e),
+            'set_type': set_type,
+            'reach_method': reach_method,
+        }
 
     # Report result
     print(f"\n" + "="*80)
     print("VERIFICATION RESULT")
     print("="*80)
 
-    if result == 1:
+    if result.verdict == "UNSAT":
         print("  Result: UNSAT")
         print("  Status: ✅ Property holds (no intersection with unsafe region)")
-    elif result == 2:
+    elif result.verdict == "UNKNOWN":
         print("  Result: UNKNOWN")
         print("  Status: ⚠️  Cannot determine (possible intersection with unsafe region)")
-    else:  # result == 0
+    else:  # result.verdict == "SAT"
         print("  Result: SAT")
         print("  Status: ❌ Property violated (counterexample exists)")
 
@@ -367,7 +371,7 @@ Examples:
         print(f"Property: {property_file.name}")
         print(f"Set type: {info['set_type'].upper()}")
         print(f"Method: {info['reach_method']}")
-        print(f"Result: {['SAT', 'UNSAT', 'UNKNOWN'][result]}")
+        print(f"Result: {result.verdict}")
         print(f"Time: {time_elapsed:.2f}s")
         print(f"Output sets: {info['num_output_sets']}")
         print("="*80)

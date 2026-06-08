@@ -1,0 +1,2 @@
+benchmark,onnx_file,vnnlib_file,verdict,wall_s,train_s,verify_s,vnncomp_timeout_s,coverage,q,epsilon_total,delta_total,amls_bounded_eps_2_upper,amls_bounded_detected_unsafe,amls_levels_used,cex_x,cex_y,error,timestamp
+acasxu_2023,ACASXU_run2a_1_1_batch_2000.onnx,prop_1.vnnlib,UNSAT,43.4,27.4,15.3,116,0.9995,5.4577,0.0020,0.9960,3.1125e-30,False,30,,,,2026-06-08T15:10:53.231864+00:00

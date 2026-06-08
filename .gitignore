@@ -49,6 +49,9 @@ Thumbs.db
 
 # Internal
 CLAUDE.md
+docs/audits/
+docs/plans/
+docs/research/
 
 # MNIST data (auto-downloaded by PyTorch for CompareNNV experiments)
 examples/CompareNNV/data/
@@ -62,3 +65,26 @@ examples/Research
 
 # Internal examples
 .examples/
+
+# FlowConformal paper-experiment outputs (CSVs, logs). Reproducible
+# via the runner scripts; not tracked. Per the post-NeurIPS cleanup
+# refactor (.claude/plans/neurips-cleanup-refactor.md, Phase 18).
+# Note: ``ground_truth.csv`` is an INPUT (cached VNN-COMP lookup),
+# not an output — kept tracked via explicit negative pattern below.
+examples/FlowConformal/experiments/*/outputs/
+examples/FlowConformal/experiments/*/*/outputs/
+examples/FlowConformal/experiments/outputs/
+examples/FlowConformal/paper/tables/outputs/
+# Negative carve-outs (force-include ground-truth lookups):
+!examples/FlowConformal/experiments/exp1_vnncomp_subset/ground_truth.csv
+!examples/FlowConformal/experiments/exp2_prob_scale/ground_truth.csv
+
+# Exp 4 synthetic ONNX networks. Deterministically regeneratable
+# (byte-identical SHA256) from ``networks.py``:
+#     python -m examples.FlowConformal.experiments.exp4_scaling.networks
+# Originally tracked (~117 MB); untracked at Phase 19.
+examples/FlowConformal/experiments/exp4_scaling/networks_onnx/
+
+# Compiled VNN-LIB caches produced by external verifiers (αβ-CROWN /
+# NeuralSAT). Regenerated on demand from the .vnnlib specs; not tracked.
+*.vnnlib.compiled

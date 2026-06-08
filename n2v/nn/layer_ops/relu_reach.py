@@ -14,7 +14,7 @@ import logging
 import numpy as np
 from typing import List, Optional
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from n2v.sets import Star, Zono, Box, Hexatope, Octatope
+from n2v.sets import Star, Zono, Hexatope, Octatope
 from n2v.sets.image_star import ImageStar
 
 logger = logging.getLogger(__name__)
@@ -618,7 +618,7 @@ def _relu_single_star_relax_range(
     map4 = map21[map3] if len(map3) > 0 else np.array([], dtype=int)
 
     # Reset newly found inactive neurons
-    map11 = np.concatenate([map1, map4]) if len(map4) > 0 else map1
+    np.concatenate([map1, map4]) if len(map4) > 0 else map1
     In = In if len(map4) == 0 else _reset_star_rows(In, map4)
 
     # Step 6: Optimize lower bounds of neurons that are still crossing
@@ -725,7 +725,7 @@ def _relu_single_star_relax_area(
     map3 = np.where(xmax <= 0)[0] if len(xmax) > 0 else np.array([], dtype=int)
     map4 = map21[map3] if len(map3) > 0 else np.array([], dtype=int)
 
-    map11 = np.concatenate([map1, map4]) if len(map4) > 0 else map1
+    np.concatenate([map1, map4]) if len(map4) > 0 else map1
     In = In if len(map4) == 0 else _reset_star_rows(In, map4)
 
     map5 = np.where(xmax > 0)[0] if len(xmax) > 0 else np.array([], dtype=int)
@@ -835,9 +835,8 @@ def _relu_single_star_relax_bound(
         map4 = map21[map3] if len(map3) > 0 else np.array([], dtype=int)
         map5 = np.where(xmax > 0)[0]
         map6 = map21[map5] if len(map5) > 0 else np.array([], dtype=int)
-        map11 = np.concatenate([map1, map4]) if len(map4) > 0 else map1
+        np.concatenate([map1, map4]) if len(map4) > 0 else map1
     else:
-        map11 = map1
         map4 = np.array([], dtype=int)
         map6 = np.array([], dtype=int)
 
@@ -855,10 +854,10 @@ def _relu_single_star_relax_bound(
         map7 = np.where(xmin < 0)[0]
         map8 = map23[map7] if len(map7) > 0 else np.array([], dtype=int)
         map9 = np.where(xmin >= 0)[0]
-        map10 = map23[map9] if len(map9) > 0 else np.array([], dtype=int)
+        map23[map9] if len(map9) > 0 else np.array([], dtype=int)
     else:
         map8 = np.array([], dtype=int)
-        map10 = np.array([], dtype=int)
+        np.array([], dtype=int)
 
     # Gather all neurons needing approximation
     # Include neurons not selected for optimization
@@ -874,11 +873,11 @@ def _relu_single_star_relax_bound(
     for idx in crossing_neurons:
         if idx in map8:
             # Optimized bound
-            opt_idx = np.where(map8 == idx)[0][0]
+            np.where(map8 == idx)[0][0]
             lbs.append(xmin[np.where(map23 == idx)[0][0]])
             # Need to get ub - check if it was optimized
             if idx in map6:
-                ub_opt_idx = np.where(map6 == idx)[0][0]
+                np.where(map6 == idx)[0][0]
                 ubs.append(xmax[np.where(map21 == idx)[0][0]])
             else:
                 ubs.append(ub[idx])

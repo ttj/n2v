@@ -17,7 +17,7 @@ import os
 
 import n2v
 from n2v.sets import Star, Box
-from n2v.probabilistic import verify
+from n2v.probabilistic import conformal_reach
 
 
 # Output directory for visualizations
@@ -114,9 +114,9 @@ def benchmark_methods(model, lb, ub, timeout=30.0, skip_exact=False):
 
     start = time.time()
     try:
-        prob_result = verify(
+        prob_result = conformal_reach(
             model=model_fn,
-            input_set=input_box,
+            input_box=input_box,
             m=500,
             epsilon=0.05,
             surrogate='naive',
@@ -298,9 +298,9 @@ becomes very slow due to exponential ReLU splitting.
             return model(torch.tensor(x, dtype=torch.float32)).numpy()
 
     start = time.time()
-    prob_result = verify(
+    prob_result = conformal_reach(
         model=model_fn,
-        input_set=input_box,
+        input_box=input_box,
         m=1000,
         epsilon=0.05,
         surrogate='clipping_block',

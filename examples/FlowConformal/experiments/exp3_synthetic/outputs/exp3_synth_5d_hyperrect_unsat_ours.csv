@@ -1,0 +1,6 @@
+benchmark,score,spec_type,seed,verdict,wall_s,train_s,verify_s,coverage,q,epsilon_total,delta_total,amls_bounded_eps_2_upper,amls_levels_used,volume_estimate,volume_exact,volume_ratio,cex_x,cex_y,error,timestamp
+synth_5d,hyperrect,unsat,0,UNSAT,0.0,0.0,0.0,,2.8499,,,,,1.913104e+00,1.209621e-02,158.1573,,,,2026-05-04T05:25:22.719063+00:00
+synth_5d,hyperrect,unsat,1,UNSAT,0.0,0.0,0.0,,3.1299,,,,,2.600347e+00,3.035058e-02,85.6770,,,,2026-05-04T05:25:26.605898+00:00
+synth_5d,hyperrect,unsat,2,UNSAT,0.0,0.0,0.0,,2.9950,,,,,3.219456e+00,5.510451e-04,5842.4546,,,,2026-05-04T05:25:30.504484+00:00
+synth_5d,hyperrect,unsat,3,UNSAT,0.0,0.0,0.0,,3.1441,,,,,4.537005e-01,2.273258e-03,199.5816,,,,2026-05-04T05:25:34.400178+00:00
+synth_5d,hyperrect,unsat,4,UNSAT,0.0,0.0,0.0,,2.9878,,,,,8.847191e-01,1.095677e-03,807.4631,,,,2026-05-04T05:25:38.371445+00:00

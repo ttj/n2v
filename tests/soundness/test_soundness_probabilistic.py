@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from n2v.probabilistic import verify
+from n2v.probabilistic import conformal_reach
 from n2v.sets import Box
 
 
@@ -20,7 +20,7 @@ class TestCoverageGuarantee:
         """
         Verify that stated coverage is achieved for a linear model.
 
-        1. Run verify() with epsilon=0.05 (95% coverage)
+        1. Run conformal_reach() with epsilon=0.05 (95% coverage)
         2. Sample N >> m points from input region
         3. Check that at least ~95% of outputs are in the ProbabilisticBox
         """
@@ -39,9 +39,9 @@ class TestCoverageGuarantee:
         # Run probabilistic verification with 95% coverage
         epsilon = 0.05
         m = 500  # Moderate sample size
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=m,
             epsilon=epsilon,
             surrogate='naive',
@@ -95,9 +95,9 @@ class TestCoverageGuarantee:
 
         # Run probabilistic verification with 90% coverage
         epsilon = 0.10
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=500,
             epsilon=epsilon,
             surrogate='clipping_block',
@@ -128,7 +128,7 @@ class TestConfidenceGuarantee:
         """
         Verify that coverage holds with stated confidence.
 
-        1. Run verify() K times with different seeds
+        1. Run conformal_reach() K times with different seeds
         2. For each run, check if coverage >= 1-epsilon
         3. Verify that at least delta_2 fraction of runs achieve coverage
         """
@@ -148,9 +148,9 @@ class TestConfidenceGuarantee:
         coverage_achieved = []
 
         for run in range(K):
-            result = verify(
+            result = conformal_reach(
                 model=model,
-                input_set=input_set,
+                input_box=input_set,
                 m=m,
                 epsilon=epsilon,
                 surrogate='naive',
@@ -204,17 +204,17 @@ class TestClippingBlockVsNaive:
         params = dict(m=200, epsilon=0.05, seed=42, training_samples=100)
 
         # Naive surrogate
-        result_naive = verify(
+        result_naive = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             surrogate='naive',
             **params
         )
 
         # Clipping block surrogate
-        result_clipping = verify(
+        result_clipping = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             surrogate='clipping_block',
             **params
         )
@@ -247,9 +247,9 @@ class TestBoundsContainTrueRange:
         ub = np.array([2.0, 2.0])
         input_set = Box(lb, ub)
 
-        result = verify(
+        result = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=500,
             epsilon=0.01,  # 99% coverage
             surrogate='naive',
@@ -289,9 +289,9 @@ class TestParameterSensitivity:
         input_set = Box(lb, ub)
 
         # Small m
-        result_small = verify(
+        result_small = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=100,
             epsilon=0.01,
             surrogate='naive',
@@ -299,9 +299,9 @@ class TestParameterSensitivity:
         )
 
         # Large m
-        result_large = verify(
+        result_large = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=1000,
             epsilon=0.01,
             surrogate='naive',
@@ -335,9 +335,9 @@ class TestParameterSensitivity:
         input_set = Box(lb, ub)
 
         # Small epsilon with ell = m-1 (second largest score)
-        result_high_cov = verify(
+        result_high_cov = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=200,
             ell=199,  # m-1
             epsilon=0.01,  # 99% coverage
@@ -347,9 +347,9 @@ class TestParameterSensitivity:
 
         # Larger epsilon with smaller ell (uses a smaller score)
         # ell should be chosen such that the guarantee still holds
-        result_low_cov = verify(
+        result_low_cov = conformal_reach(
             model=model,
-            input_set=input_set,
+            input_box=input_set,
             m=200,
             ell=180,  # Uses 180th largest score (tighter)
             epsilon=0.10,  # 90% coverage

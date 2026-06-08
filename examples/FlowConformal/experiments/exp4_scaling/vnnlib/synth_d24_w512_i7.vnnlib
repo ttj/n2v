@@ -1,0 +1,21 @@
+(declare-const X_0 Real)
+(declare-const X_1 Real)
+(declare-const X_2 Real)
+(declare-const X_3 Real)
+(declare-const X_4 Real)
+(declare-const Y_0 Real)
+
+; Input box
+(assert (<= X_0 -0.40400252))
+(assert (>= X_0 -0.60400254))
+(assert (<= X_1 0.24749663))
+(assert (>= X_1 0.04749664))
+(assert (<= X_2 0.27397200))
+(assert (>= X_2 0.07397199))
+(assert (<= X_3 1.04339790))
+(assert (>= X_3 0.84339792))
+(assert (<= X_4 -0.75562561))
+(assert (>= X_4 -0.95562565))
+
+; Unsafe: y_0 >= C  ⟺  G y <= g  with  G=[[-1]], g=[[-C]]
+(assert (>= Y_0 0.32360680))

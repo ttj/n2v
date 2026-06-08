@@ -1,0 +1,2 @@
+benchmark,onnx_file,vnnlib_file,verdict,wall_s,vnncomp_timeout_s,m,ell,epsilon,coverage,coverage_empirical,coverage_n_test,confidence,cex_x,cex_y,error,timestamp
+acasxu_2023,ACASXU_run2a_1_1_batch_2000.onnx,prop_1.vnnlib,UNSAT,70.7,116,8000,7999,0.001,0.9990,1.0000,1000,0.9970,,,,2026-06-05T14:01:58.762122+00:00

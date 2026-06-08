@@ -1,0 +1,2 @@
+instance_idx,box_idx,onnx_file,vnnlib_file,ground_truth,method,verdict,q,coverage,epsilon_total,amls_bounded_eps_2_upper,flow_train_s,verify_s,wall_s,error,timestamp
+0,0,ACASXU_run2a_1_1_batch_2000.onnx,prop_3.vnnlib,unsat,scenario,UNSAT,5.044272,1.0000,4.4504e-03,,29.2,0.1,29.3,,2026-06-05T14:34:44.429364+00:00

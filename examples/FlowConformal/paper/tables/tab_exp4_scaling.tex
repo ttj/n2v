@@ -1,0 +1,19 @@
+% Auto-generated table. Compile with `pdflatex` or include in your manuscript.
+% Required packages: booktabs, multirow.
+% Required LaTeX packages: booktabs.
+\begin{table}[t]
+\centering
+\caption{Exp~4 scaling on the synthetic 1-Lipschitz family (width=512). Each cell shows mean wall-clock (s, over solved instances) at the given depth; ``$(N/M$\,TO$)$'' marks how many of $M{=}10$ instances hit the per-instance shell timeout. Italic = sound verifier; bold = ours.}
+\label{tab:exp4_scaling}
+\small
+\begin{tabular}{lrrrrrrr}
+\toprule
+Method & $d{=}2$ & $d{=}4$ & $d{=}8$ & $d{=}16$ & $d{=}24$ & $d{=}32$ & $d{=}40$ \\
+\midrule
+\textit{$\alpha,\!\beta$-CROWN} & 8.9 & 9.4 & 10.1 & 25.5 & 225 \scriptsize{(8/10\,TO)} & \textsc{to} & \textsc{to} \\
+\textit{NeuralSAT} & 6.1 & 6.8 & 8.5 & 7.1 & 7.2 & 7.4 & 7.8 \\
+Hashemi (clip) & 46.4 & 50.5 & 50.2 & 44.7 & 37.5 & 37.9 & 38.1 \\
+\textbf{Ours (flow-conformal)} & 64.2 & 63.6 & 62.3 & 64.3 & 62.0 & 62.5 & 62.3 \\
+\bottomrule
+\end{tabular}
+\end{table}

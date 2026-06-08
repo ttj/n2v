@@ -6,7 +6,9 @@ Model-agnostic probabilistic verification via conformal inference.
 Main Interface
 --------------
 
-.. autofunction:: n2v.probabilistic.verify
+.. autofunction:: n2v.probabilistic.conformal_reach
+
+.. autofunction:: n2v.probabilistic.flow_reach
 
 Conformal Guarantee
 -------------------

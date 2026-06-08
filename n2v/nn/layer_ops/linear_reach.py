@@ -5,7 +5,6 @@ Works directly with PyTorch nn.Linear layers.
 """
 
 import torch.nn as nn
-import numpy as np
 from typing import List
 from n2v.sets import Star, Zono, Box, Hexatope, Octatope
 

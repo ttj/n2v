@@ -1,0 +1,2 @@
+benchmark,spec_type,seed,verdict,wall_s,m,ell,epsilon,coverage,confidence,volume_estimate_closedform,volume_estimate_mc,volume_exact,volume_ratio_closedform,volume_ratio_mc,cex_x,cex_y,error,timestamp
+3d_banana,unsat,47,UNSAT,60.0,8000,7999,0.001,0.9990,0.9970,1.038525e+05,1.036300e+05,2.137253e+02,485.9160,484.8749,,,,2026-05-06T05:48:06.624558+00:00

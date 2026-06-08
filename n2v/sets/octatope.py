@@ -23,7 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 # TYPE_CHECKING imports for type hints (avoid circular import at runtime)
 if TYPE_CHECKING:
-    from n2v.sets.hexatope import DifferenceConstraintSystem, Hexatope
+    from n2v.sets.hexatope import DifferenceConstraintSystem
     from n2v.sets.box import Box
     from n2v.sets.star import Star
 
@@ -561,7 +561,7 @@ class Octatope:
         Returns:
             Optimal value, or None if infeasible
         """
-        from n2v.sets.hexatope import Hexatope, DifferenceConstraintSystem
+        from n2v.sets.hexatope import Hexatope
 
         # Step 1: Convert UTVPI to DCS (Theorem 7)
         # This creates split variables x+_i, x-_i where x_i = 0.5(x+_i - x-_i)

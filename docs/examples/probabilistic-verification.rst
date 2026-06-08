@@ -15,7 +15,7 @@ Basic Usage
    import torch.nn as nn
    import numpy as np
    from n2v.sets import Box
-   from n2v.probabilistic import verify
+   from n2v.probabilistic import conformal_reach
 
    # Any callable model
    model = nn.Sequential(
@@ -31,7 +31,7 @@ Basic Usage
    input_box = Box(lb.reshape(-1, 1), ub.reshape(-1, 1))
 
    # Probabilistic verification
-   prob_box = verify(
+   prob_box = conformal_reach(
        model,
        input_box,
        m=8000,          # calibration samples
@@ -40,8 +40,8 @@ Basic Usage
 
    # Results
    print(f"Output bounds: [{prob_box.lb.flatten()}, {prob_box.ub.flatten()}]")
-   print(f"Coverage: {prob_box.guarantee.coverage}")
-   print(f"Confidence: {prob_box.guarantee.confidence}")
+   print(f"Coverage: {prob_box.coverage}")
+   print(f"Confidence: {prob_box.confidence}")
 
 Understanding the Guarantees
 ----------------------------
@@ -71,7 +71,7 @@ measures how far actual outputs deviate:
 .. code-block:: python
 
    # Use naive surrogate (faster but may produce looser bounds)
-   prob_box = verify(model, input_box, m=8000, surrogate='naive')
+   prob_box = conformal_reach(model, input_box, m=8000, surrogate='naive')
 
 PCA Dimensionality Reduction
 -----------------------------
@@ -81,7 +81,7 @@ output dimension before computing bounds:
 
 .. code-block:: python
 
-   prob_box = verify(
+   prob_box = conformal_reach(
        model,
        input_box,
        m=8000,

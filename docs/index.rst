@@ -242,7 +242,7 @@ API Reference
       :link-type: doc
       :class-card: sd-border-0 sd-shadow-sm
 
-      ``verify()``, conformal inference functions
+      ``conformal_reach()``, ``flow_reach()``, conformal inference functions
 
    .. grid-item-card:: Utilities
       :link: api/utils

@@ -156,7 +156,7 @@ def _reduce_flat_star(star: Star, axes: Optional[List[int]], op: str, keepdims: 
     is [0] meaning reduce along the single feature dimension.
     """
     dim = star.dim
-    n_cols = star.V.shape[1]
+    star.V.shape[1]
 
     if axes is None or axes == [0] or (len(axes) == 1 and axes[0] == 0):
         # Reduce the entire feature dimension -> scalar output

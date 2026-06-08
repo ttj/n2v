@@ -29,17 +29,47 @@ Usage:
     result, cex = falsify(model, lb, ub, property, method='random+pgd')
 """
 
+from typing import List, Optional, Tuple, Union
+
 import numpy as np
 import torch
-from typing import Union, List, Optional, Tuple, Literal
+
 from n2v.sets.halfspace import HalfSpace
+
+
+# Soft dependency: AutoAttack (Croce & Hein 2020). Enables
+# method='autoattack' as an opt-in adversarial-robustness ensemble
+# backend. Not installed by default; `pip install git+https://github.com/
+# fra31/auto-attack.git` to enable.
+try:
+    import autoattack as _autoattack_pkg  # noqa: F401
+    _HAS_AUTOATTACK = True
+except ImportError:
+    _HAS_AUTOATTACK = False
 
 
 # Type alias for falsification results
 FalsifyResult = Tuple[int, Optional[Tuple[np.ndarray, np.ndarray]]]
 
 # Available falsification methods
-METHODS = ['random', 'pgd', 'random+pgd']
+METHODS = ['random', 'pgd', 'apgd', 'random+pgd', 'random+pgd+apgd',
+           'autoattack']
+
+
+def _detect_model_device(model) -> torch.device:
+    """Return the device the model's parameters/buffers live on.
+
+    Falls back to CPU when the model has neither parameters nor
+    buffers (e.g. some ONNX-converted graphs hold their constants as
+    Python attributes rather than as registered buffers).
+    """
+    try:
+        return next(model.parameters()).device
+    except StopIteration:
+        try:
+            return next(model.buffers()).device
+        except StopIteration:
+            return torch.device('cpu')
 
 
 def falsify(
@@ -127,6 +157,19 @@ def falsify(
             return result, cex
         # Then try PGD
         return _falsify_pgd(model, lb, ub, property, seed=seed, **kwargs)
+    elif method == 'apgd':
+        return _falsify_apgd(model, lb, ub, property, seed=seed, **kwargs)
+    elif method == 'random+pgd+apgd':
+        # Cascade: random -> pgd -> apgd. Return on first SAT.
+        result, cex = _falsify_random(model, lb, ub, property, seed=seed, **kwargs)
+        if result == 0:
+            return result, cex
+        result, cex = _falsify_pgd(model, lb, ub, property, seed=seed, **kwargs)
+        if result == 0:
+            return result, cex
+        return _falsify_apgd(model, lb, ub, property, seed=seed, **kwargs)
+    elif method == 'autoattack':
+        return _falsify_autoattack(model, lb, ub, property, seed=seed, **kwargs)
 
     # Should not reach here
     raise ValueError(f"Unknown method '{method}'")
@@ -158,9 +201,11 @@ def _falsify_random(
     Returns:
         Tuple of (result, counterexample)
     """
-    # Set random seed if provided
-    if seed is not None:
-        np.random.seed(seed)
+    # Use a dedicated numpy Generator seeded from `seed` so the falsifier's
+    # randomness depends ONLY on `seed` and not on global numpy state. This
+    # makes the verdict order-independent: running this falsifier after any
+    # other code that touched np.random gives the same result.
+    rng = np.random.default_rng(seed)
 
     lb = np.asarray(lb, dtype=np.float32)
     ub = np.asarray(ub, dtype=np.float32)
@@ -179,16 +224,19 @@ def _falsify_random(
     groups = _extract_halfspace_groups(property)
 
     # Generate random samples uniformly in [lb, ub]
-    samples = np.random.uniform(lb_flat, ub_flat, size=(n_samples, input_dim)).astype(np.float32)
+    samples = rng.uniform(lb_flat, ub_flat, size=(n_samples, input_dim)).astype(np.float32)
 
-    # Run model in eval mode without gradients
+    # Run model in eval mode without gradients. Push samples to the
+    # model's device so CUDA-resident networks (e.g. Exp 4 ours) don't
+    # raise mat1-on-cpu / weight-on-cuda mismatches.
+    device = _detect_model_device(model)
     model.eval()
     with torch.no_grad():
         for i in range(n_samples):
-            sample_tensor = torch.from_numpy(samples[i]).reshape(1, *orig_shape)
+            sample_tensor = torch.from_numpy(samples[i]).reshape(1, *orig_shape).to(device)
 
             output = model(sample_tensor)
-            output_np = output.numpy().flatten()
+            output_np = output.detach().cpu().numpy().flatten()
 
             # Check if output satisfies all property groups (AND of OR)
             if _output_satisfies_property(output_np, groups):
@@ -229,10 +277,15 @@ def _falsify_pgd(
     Returns:
         Tuple of (result, counterexample)
     """
-    # Set random seeds if provided
+    # Dedicated RNG instances seeded from `seed`. PGD inits use numpy
+    # uniform draws; torch operations downstream are deterministic given
+    # those inits, but we still seed a torch Generator defensively for any
+    # future stochastic torch op. Using local generators (not np.random.seed
+    # / torch.manual_seed) makes this falsifier order-independent.
+    rng = np.random.default_rng(seed)
+    torch_gen = torch.Generator()
     if seed is not None:
-        np.random.seed(seed)
-        torch.manual_seed(seed)
+        torch_gen.manual_seed(int(seed) & 0x7FFFFFFFFFFFFFFF)
 
     lb = np.asarray(lb, dtype=np.float32)
     ub = np.asarray(ub, dtype=np.float32)
@@ -247,9 +300,13 @@ def _falsify_pgd(
 
     input_dim = lb_flat.shape[0]
 
+    # Detect the model's device so all tensors fed to it (and constraint
+    # tensors used in gradient computation) live on the same device.
+    device = _detect_model_device(model)
+
     # Convert bounds to tensors (flat for clamping)
-    lb_tensor = torch.from_numpy(lb_flat)
-    ub_tensor = torch.from_numpy(ub_flat)
+    lb_tensor = torch.from_numpy(lb_flat).to(device)
+    ub_tensor = torch.from_numpy(ub_flat).to(device)
 
     # Auto-compute step size if not provided (1% of input range)
     if step_size is None:
@@ -264,8 +321,8 @@ def _falsify_pgd(
     for group in groups:
         tensors = []
         for hs in group:
-            G = torch.from_numpy(hs.G.astype(np.float32))
-            g = torch.from_numpy(hs.g.astype(np.float32).flatten())
+            G = torch.from_numpy(hs.G.astype(np.float32)).to(device)
+            g = torch.from_numpy(hs.g.astype(np.float32).flatten()).to(device)
             tensors.append((G, g))
         group_tensors.append(tensors)
 
@@ -275,8 +332,8 @@ def _falsify_pgd(
     for _ in range(n_restarts):
         # Initialize with random input in [lb, ub] (flat for gradient/clamping)
         x = torch.from_numpy(
-            np.random.uniform(lb_flat, ub_flat, size=(1, input_dim)).astype(np.float32)
-        )
+            rng.uniform(lb_flat, ub_flat, size=(1, input_dim)).astype(np.float32)
+        ).to(device)
         x.requires_grad = True
 
         for _ in range(n_steps):
@@ -289,7 +346,7 @@ def _falsify_pgd(
             # Loss = max over groups of (min over hs in group of max(G @ y - g))
             group_losses = []
             for group_t in group_tensors:
-                best_in_group = torch.tensor(float('inf'))
+                best_in_group = torch.tensor(float('inf'), device=device)
                 for G, g in group_t:
                     margins = G @ output.flatten() - g
                     max_margin = margins.max()
@@ -301,8 +358,8 @@ def _falsify_pgd(
 
             # Check if we found a counterexample
             if total_loss.item() <= 0:
-                output_np = output.detach().numpy().flatten()
-                input_np = x.detach().numpy().flatten()
+                output_np = output.detach().cpu().numpy().flatten()
+                input_np = x.detach().cpu().numpy().flatten()
                 return 0, (input_np, output_np)
 
             # Backward pass
@@ -320,11 +377,125 @@ def _falsify_pgd(
         # Final check after all steps
         with torch.no_grad():
             output = model(x.reshape(1, *orig_shape))
-            output_np = output.numpy().flatten()
+            output_np = output.detach().cpu().numpy().flatten()
 
             if _output_satisfies_property(output_np, groups):
-                input_np = x.numpy().flatten()
+                input_np = x.detach().cpu().numpy().flatten()
                 return 0, (input_np, output_np)
+
+    return 2, None
+
+
+def _falsify_apgd(
+    model: torch.nn.Module,
+    lb: np.ndarray,
+    ub: np.ndarray,
+    property: Union[dict, List[dict], 'HalfSpace', List['HalfSpace']],
+    n_restarts: int = 10,
+    n_steps: int = 50,
+    step_size: Optional[float] = None,
+    seed: Optional[int] = None,
+    **kwargs,
+) -> FalsifyResult:
+    """Auto-PGD (Croce & Hein 2020). PGD with a step-size schedule that
+    halves on plateau windows and restarts from best-so-far.
+
+    Args:
+        model: PyTorch model accepting the flat-shaped input.
+        lb, ub: bounds of the input box (same shape as model input).
+        property: VNN-LIB-shaped property.
+        n_restarts: independent random inits.
+        n_steps: steps per restart.
+        step_size: initial step size (default: 5% of max input range).
+        seed: RNG seed (numpy + torch).
+
+    Returns:
+        (result, counterexample) where result=0 means SAT found,
+        result=2 means unknown, and counterexample is (x, y) or None.
+    """
+    # Dedicated RNG instances; see _falsify_pgd for rationale.
+    rng = np.random.default_rng(seed)
+    torch_gen = torch.Generator()
+    if seed is not None:
+        torch_gen.manual_seed(int(seed) & 0x7FFFFFFFFFFFFFFF)
+
+    lb = np.asarray(lb, dtype=np.float32)
+    ub = np.asarray(ub, dtype=np.float32)
+    orig_shape = lb.shape
+    lb_flat = lb.flatten()
+    ub_flat = ub.flatten()
+    input_dim = lb_flat.shape[0]
+
+    if step_size is None:
+        step_size = float((ub_flat - lb_flat).max() * 0.05)
+    initial_step = step_size
+
+    # Detect the model's device so all tensors live on the same device.
+    device = _detect_model_device(model)
+
+    groups = _extract_halfspace_groups(property)
+    group_tensors = []
+    for group in groups:
+        group_tensors.append([
+            (torch.from_numpy(hs.G.astype(np.float32)).to(device),
+             torch.from_numpy(hs.g.astype(np.float32).flatten()).to(device))
+            for hs in group
+        ])
+
+    model.eval()
+
+    plateau_window = max(5, n_steps // 5)
+    lb_tensor = torch.from_numpy(lb_flat).to(device)
+    ub_tensor = torch.from_numpy(ub_flat).to(device)
+
+    for _ in range(n_restarts):
+        x = torch.from_numpy(
+            rng.uniform(lb_flat, ub_flat, size=(1, input_dim)).astype(np.float32)
+        ).to(device)
+        x.requires_grad_(True)
+        best_loss = float('inf')
+        best_x = x.detach().clone()
+        local_step = initial_step
+        steps_since_improvement = 0
+
+        for _ in range(n_steps):
+            output = model(x.reshape(1, *orig_shape))
+            group_losses = []
+            for group_t in group_tensors:
+                best_in_group = torch.tensor(float('inf'), device=device)
+                for G, g in group_t:
+                    margins = G @ output.flatten() - g
+                    max_margin = margins.max()
+                    if max_margin < best_in_group:
+                        best_in_group = max_margin
+                group_losses.append(best_in_group)
+            total_loss = torch.stack(group_losses).max()
+
+            if total_loss.item() <= 0:
+                output_np = output.detach().cpu().numpy().flatten()
+                input_np = x.detach().cpu().numpy().flatten()
+                return 0, (input_np, output_np)
+
+            if total_loss.item() < best_loss - 1e-9:
+                best_loss = total_loss.item()
+                best_x = x.detach().clone()
+                steps_since_improvement = 0
+            else:
+                steps_since_improvement += 1
+                if steps_since_improvement >= plateau_window:
+                    local_step *= 0.5
+                    x = best_x.clone().requires_grad_(True)
+                    steps_since_improvement = 0
+                    continue
+
+            if x.grad is not None:
+                x.grad.zero_()
+            total_loss.backward()
+            with torch.no_grad():
+                grad = x.grad
+                x_new = x - local_step * grad.sign()
+                x_new = torch.clamp(x_new, lb_tensor, ub_tensor)
+            x = x_new.detach().requires_grad_(True)
 
     return 2, None
 
@@ -384,3 +555,44 @@ def _output_satisfies_property(output_np: np.ndarray, groups: List[List['HalfSpa
         if not any(hs.contains(output_np) for hs in group):
             return False
     return True
+
+
+def _falsify_autoattack(
+    model: torch.nn.Module,
+    lb: np.ndarray,
+    ub: np.ndarray,
+    property,
+    seed: Optional[int] = None,
+    **kwargs,
+) -> FalsifyResult:
+    """Tier-2 scaffold wrapping the external ``autoattack`` package.
+
+    AutoAttack (Croce & Hein 2020, ICML) is the robustness community's
+    standard adversarial-attack ensemble (APGD-CE + APGD-DLR + FAB +
+    Square). It's designed for classification-robustness losses on
+    input perturbation balls, not the general AND-of-OR-of-AND VNN-LIB
+    unsafe-region losses our pipeline uses.
+
+    This function is a scaffold. If ``autoattack`` is not installed, it
+    raises ImportError with install instructions. If it IS installed, it
+    currently raises NotImplementedError — wiring the VNN-LIB loss into
+    AutoAttack's API is deferred as Phase 4 tier-2 work. Invoke via
+    ``method='autoattack'``.
+
+    Raises:
+        ImportError: ``autoattack`` pip package is not installed.
+        NotImplementedError: package is installed but full integration
+            with the VNN-LIB loss is not yet wired up. See
+            ``docs/plans/2026-04-24-phase4-full-spec-support-design.md``
+            Tier 2 notes for the remaining work.
+    """
+    if not _HAS_AUTOATTACK:
+        raise ImportError(
+            "AutoAttack backend requires the 'autoattack' pip package. "
+            "Install: pip install git+https://github.com/fra31/auto-attack.git"
+        )
+    raise NotImplementedError(
+        "AutoAttack wrapper is a Phase 4 scaffold. Full integration "
+        "with the AND-of-OR-of-AND loss is deferred to tier-2 work. "
+        "Use method='random+pgd+apgd' for the production ensemble."
+    )

@@ -52,8 +52,8 @@ class TestVerifyRegionsParallel:
             model, regions, prop, method='approx', n_workers=2
         )
 
-        # If all sequential are UNSAT (1), parallel should also be UNSAT
-        if all(r == 1 for r in sequential_results):
+        # If all sequential are UNSAT, parallel should also be UNSAT
+        if all(r.verdict == 'UNSAT' for r in sequential_results):
             assert parallel_result['result'] == 'unsat'
 
     def test_single_region_works(self):

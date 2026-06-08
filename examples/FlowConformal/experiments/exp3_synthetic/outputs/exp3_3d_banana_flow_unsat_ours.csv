@@ -1,0 +1,2 @@
+benchmark,score,spec_type,seed,verdict,wall_s,train_s,verify_s,coverage,q,epsilon_total,delta_total,amls_bounded_eps_2_upper,amls_levels_used,volume_estimate,volume_exact,volume_ratio,cex_x,cex_y,error,timestamp
+3d_banana,flow,unsat,47,UNSAT,22.5,11.3,11.2,,2.9281,0.0010,0.9960,3.1125e-30,30,1.461782e+04,2.137253e+02,68.3954,,,,2026-05-06T05:48:47.995773+00:00

@@ -1,0 +1,6 @@
+benchmark,score,spec_type,seed,verdict,wall_s,train_s,verify_s,coverage,q,epsilon_total,delta_total,amls_bounded_eps_2_upper,amls_levels_used,volume_estimate,volume_exact,volume_ratio,cex_x,cex_y,error,timestamp
+2d_banana,flow,unsat,0,UNSAT,37.3,26.2,11.1,,3.1142,0.0010,0.9960,3.1125e-30,30,4.077618e-01,2.951580e-01,1.3815,,,,2026-05-06T16:21:45.227539+00:00
+2d_banana,flow,unsat,1,UNSAT,35.9,25.1,10.8,,3.1487,0.0010,0.9960,3.1125e-30,30,3.815268e-01,2.951580e-01,1.2926,,,,2026-05-06T16:22:25.422928+00:00
+2d_banana,flow,unsat,2,UNSAT,34.9,24.2,10.8,,3.0918,0.0010,0.9960,3.1125e-30,30,3.808607e-01,2.951580e-01,1.2904,,,,2026-05-06T16:23:04.460718+00:00
+2d_banana,flow,unsat,3,UNSAT,35.6,24.8,10.8,,3.2610,0.0010,0.9960,3.1125e-30,30,3.934353e-01,2.951580e-01,1.3330,,,,2026-05-06T16:23:44.145033+00:00
+2d_banana,flow,unsat,4,UNSAT,35.5,24.7,10.8,,3.1138,0.0010,0.9960,3.1125e-30,30,3.948796e-01,2.951580e-01,1.3379,,,,2026-05-06T16:24:23.726142+00:00

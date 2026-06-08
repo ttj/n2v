@@ -1,0 +1,33 @@
+benchmark,onnx_file,vnnlib_file,verdict,wall_s,train_s,verify_s,vnncomp_timeout_s,coverage,q,epsilon_total,delta_total,amls_bounded_eps_2_upper,amls_bounded_detected_unsafe,amls_levels_used,cex_x,cex_y,error,timestamp
+tllverify_2023,tllBench_n=2_N=M=8_m=1_instance_0_0.onnx,property_N=8_0.vnnlib,UNSAT,61.8,49.5,11.8,600,1.0000,2.7941,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:25:11.263809+00:00
+tllverify_2023,tllBench_n=2_N=M=8_m=1_instance_0_1.onnx,property_N=8_1.vnnlib,UNSAT,67.1,50.8,15.7,600,1.0000,3.8998,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:26:26.777234+00:00
+tllverify_2023,tllBench_n=2_N=M=8_m=1_instance_0_2.onnx,property_N=8_2.vnnlib,UNSAT,67.9,55.5,11.8,600,1.0000,3.0355,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:27:43.078550+00:00
+tllverify_2023,tllBench_n=2_N=M=8_m=1_instance_0_3.onnx,property_N=8_3.vnnlib,SAT,0.1,0.0,0.0,600,,,,,,,,"[0.9672079682350159, 1.014675259590149]",[1.2232561111450195],,2026-05-02T13:27:50.783137+00:00
+tllverify_2023,tllBench_n=2_N=M=16_m=1_instance_1_0.onnx,property_N=16_0.vnnlib,UNSAT,63.3,51.2,11.6,600,1.0000,3.6915,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:29:02.269960+00:00
+tllverify_2023,tllBench_n=2_N=M=16_m=1_instance_1_1.onnx,property_N=16_1.vnnlib,SAT,0.1,0.0,0.0,600,,,,,,,,"[0.9672079682350159, 1.014675259590149]",[-2.136526107788086],,2026-05-02T13:29:09.931375+00:00
+tllverify_2023,tllBench_n=2_N=M=16_m=1_instance_1_2.onnx,property_N=16_2.vnnlib,UNSAT,63.0,50.7,11.6,600,1.0000,3.2931,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:30:21.016076+00:00
+tllverify_2023,tllBench_n=2_N=M=16_m=1_instance_1_3.onnx,property_N=16_3.vnnlib,UNSAT,63.0,50.7,11.7,600,1.0000,3.7217,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:31:32.586654+00:00
+tllverify_2023,tllBench_n=2_N=M=24_m=1_instance_2_0.onnx,property_N=24_0.vnnlib,UNSAT,67.0,54.5,11.8,600,1.0000,3.5420,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:32:48.006204+00:00
+tllverify_2023,tllBench_n=2_N=M=24_m=1_instance_2_1.onnx,property_N=24_1.vnnlib,UNSAT,61.8,49.5,11.6,600,1.0000,3.8146,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:33:58.362830+00:00
+tllverify_2023,tllBench_n=2_N=M=24_m=1_instance_2_2.onnx,property_N=24_2.vnnlib,SAT,0.4,0.0,0.0,600,,,,,,,,"[-0.6327919960021973, -1.7853248119354248]",[-4.890003204345703],,2026-05-02T13:34:06.223498+00:00
+tllverify_2023,tllBench_n=2_N=M=24_m=1_instance_2_3.onnx,property_N=24_3.vnnlib,SAT,0.2,0.0,0.0,600,,,,,,,,"[0.9672079682350159, 1.014675259590149]",[-1.4321188926696777],,2026-05-02T13:34:13.668987+00:00
+tllverify_2023,tllBench_n=2_N=M=32_m=1_instance_3_0.onnx,property_N=32_0.vnnlib,UNSAT,64.5,52.1,11.9,600,1.0000,4.3885,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:35:26.291529+00:00
+tllverify_2023,tllBench_n=2_N=M=32_m=1_instance_3_1.onnx,property_N=32_1.vnnlib,SAT,0.1,0.0,0.0,600,,,,,,,,"[0.9672079682350159, 1.014675259590149]",[-1.2705211639404297],,2026-05-02T13:35:34.431752+00:00
+tllverify_2023,tllBench_n=2_N=M=32_m=1_instance_3_2.onnx,property_N=32_2.vnnlib,UNSAT,66.7,50.6,15.6,600,1.0000,3.4654,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:36:49.358368+00:00
+tllverify_2023,tllBench_n=2_N=M=32_m=1_instance_3_3.onnx,property_N=32_3.vnnlib,UNSAT,70.9,58.1,12.2,600,0.9995,3.1565,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:38:08.988830+00:00
+tllverify_2023,tllBench_n=2_N=M=40_m=1_instance_4_0.onnx,property_N=40_0.vnnlib,UNSAT,61.8,49.3,11.7,600,0.9990,3.1681,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:39:20.027825+00:00
+tllverify_2023,tllBench_n=2_N=M=40_m=1_instance_4_1.onnx,property_N=40_1.vnnlib,SAT,0.3,0.0,0.0,600,,,,,,,,"[1.167207956314087, 0.8146752715110779]",[-2.116957664489746],,2026-05-02T13:39:28.838353+00:00
+tllverify_2023,tllBench_n=2_N=M=40_m=1_instance_4_2.onnx,property_N=40_2.vnnlib,UNSAT,61.6,49.3,11.8,600,0.9990,3.0310,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:40:39.148855+00:00
+tllverify_2023,tllBench_n=2_N=M=40_m=1_instance_4_3.onnx,property_N=40_3.vnnlib,SAT,0.1,0.0,0.0,600,,,,,,,,"[0.9672079682350159, 1.014675259590149]",[-1.7655534744262695],,2026-05-02T13:40:47.897200+00:00
+tllverify_2023,tllBench_n=2_N=M=48_m=1_instance_5_0.onnx,property_N=48_0.vnnlib,SAT,0.1,0.0,0.0,600,,,,,,,,"[0.9672079682350159, 1.014675259590149]",[-1.7215752601623535],,2026-05-02T13:40:56.662843+00:00
+tllverify_2023,tllBench_n=2_N=M=48_m=1_instance_5_1.onnx,property_N=48_1.vnnlib,SAT,0.5,0.0,0.0,600,,,,,,,,"[0.6607221364974976, 0.014900118112564087]",[-0.856586217880249],,2026-05-02T13:41:06.083248+00:00
+tllverify_2023,tllBench_n=2_N=M=48_m=1_instance_5_2.onnx,property_N=48_2.vnnlib,UNSAT,62.3,50.3,11.4,600,1.0000,3.0264,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:42:17.830147+00:00
+tllverify_2023,tllBench_n=2_N=M=48_m=1_instance_5_3.onnx,property_N=48_3.vnnlib,SAT,0.3,0.0,0.0,600,,,,,,,,"[0.7672079801559448, 0.8146752715110779]",[-1.8495421409606934],,2026-05-02T13:42:27.508853+00:00
+tllverify_2023,tllBench_n=2_N=M=56_m=1_instance_6_0.onnx,property_N=56_0.vnnlib,UNSAT,71.0,54.5,15.7,600,1.0000,3.4268,0.0010,0.9960,3.1125e-30,False,30,,,,2026-05-02T13:43:49.563540+00:00
+tllverify_2023,tllBench_n=2_N=M=56_m=1_instance_6_1.onnx,property_N=56_1.vnnlib,SAT,0.1,0.0,0.0,600,,,,,,,,"[0.9672079682350159, 1.014675259590149]",[-2.008815288543701],,2026-05-02T13:44:00.253672+00:00
+tllverify_2023,tllBench_n=2_N=M=56_m=1_instance_6_2.onnx,property_N=56_2.vnnlib,SAT,0.4,0.0,0.0,600,,,,,,,,"[-0.33927786350250244, -1.785099983215332]",[-3.577589511871338],,2026-05-02T13:44:10.095864+00:00
+tllverify_2023,tllBench_n=2_N=M=56_m=1_instance_6_3.onnx,property_N=56_3.vnnlib,SAT,0.4,0.0,0.0,600,,,,,,,,"[-0.139277845621109, -1.5850999355316162]",[-0.7657005786895752],,2026-05-02T13:44:20.593509+00:00
+tllverify_2023,tllBench_n=2_N=M=64_m=1_instance_7_0.onnx,property_N=64_0.vnnlib,SAT,0.1,0.0,0.0,600,,,,,,,,"[0.9672079682350159, 1.014675259590149]",[-1.8844919204711914],,2026-05-02T13:44:32.963522+00:00
+tllverify_2023,tllBench_n=2_N=M=64_m=1_instance_7_1.onnx,property_N=64_1.vnnlib,SAT,0.1,0.0,0.0,600,,,,,,,,"[0.9672079682350159, 1.014675259590149]",[-1.9908828735351562],,2026-05-02T13:44:45.609496+00:00
+tllverify_2023,tllBench_n=2_N=M=64_m=1_instance_7_2.onnx,property_N=64_2.vnnlib,SAT,0.3,0.0,0.0,600,,,,,,,,"[1.167207956314087, 1.2146753072738647]",[-1.8180303573608398],,2026-05-02T13:44:58.251250+00:00
+tllverify_2023,tllBench_n=2_N=M=64_m=1_instance_7_3.onnx,property_N=64_3.vnnlib,UNKNOWN,56.0,55.5,0.1,600,1.0000,3.2234,0.3491,0.9960,3.4845e-01,True,1,,,,2026-05-02T13:46:06.310541+00:00

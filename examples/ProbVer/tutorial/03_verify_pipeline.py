@@ -1,7 +1,7 @@
 """
 03_verify_pipeline.py - Full Probabilistic Verification Pipeline
 
-This script demonstrates the complete verify() pipeline:
+This script demonstrates the complete conformal_reach() pipeline:
 1. Model definition (any callable)
 2. Input set specification
 3. Running verification with different parameters
@@ -13,7 +13,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from n2v.probabilistic import verify
+from n2v.probabilistic import conformal_reach
 from n2v.sets import Box
 
 
@@ -30,7 +30,7 @@ def main():
     print("=" * 70)
 
     print("""
-The verify() function works with ANY callable model that maps:
+The conformal_reach() function works with ANY callable model that maps:
   numpy array (batch_size, input_dim) -> numpy array (batch_size, output_dim)
 
 This can be:
@@ -100,7 +100,7 @@ Samples are drawn uniformly from this region.
     print("=" * 70)
 
     print("""
-The verify() function:
+The conformal_reach() function:
 1. Samples training points from input_set
 2. Fits a surrogate model to the outputs
 3. Samples calibration points from input_set
@@ -109,11 +109,11 @@ The verify() function:
 """)
 
     # Run verification with verbose output
-    print("\n--- Running verify() with verbose=True ---\n")
+    print("\n--- Running conformal_reach() with verbose=True ---\n")
 
-    result = verify(
+    result = conformal_reach(
         model=model_fn,
-        input_set=input_set,
+        input_box=input_set,
         m=500,                   # Calibration samples
         ell=None,                # Default: m-1
         epsilon=0.05,            # 95% coverage
@@ -210,9 +210,9 @@ Let's see how different parameters affect the results.
     print("-" * 35)
 
     for m in [100, 250, 500, 1000]:
-        result_m = verify(
+        result_m = conformal_reach(
             model=model_fn,
-            input_set=input_set,
+            input_box=input_set,
             m=m,
             epsilon=0.05,
             surrogate='naive',  # Fast for this comparison
@@ -230,9 +230,9 @@ Let's see how different parameters affect the results.
     print("-" * 45)
 
     for eps in [0.001, 0.01, 0.05, 0.1]:
-        result_eps = verify(
+        result_eps = conformal_reach(
             model=model_fn,
-            input_set=input_set,
+            input_box=input_set,
             m=500,
             epsilon=eps,
             surrogate='naive',
@@ -247,9 +247,9 @@ Let's see how different parameters affect the results.
     # Compare surrogates
     print("\n--- Surrogate comparison ---")
 
-    result_naive = verify(
+    result_naive = conformal_reach(
         model=model_fn,
-        input_set=input_set,
+        input_box=input_set,
         m=500,
         epsilon=0.05,
         surrogate='naive',
@@ -257,9 +257,9 @@ Let's see how different parameters affect the results.
         verbose=False
     )
 
-    result_clip = verify(
+    result_clip = conformal_reach(
         model=model_fn,
-        input_set=input_set,
+        input_box=input_set,
         m=500,
         epsilon=0.05,
         surrogate='clipping_block',
@@ -306,7 +306,7 @@ ProbabilisticBox inherits from Box, so you can use all Box methods.
     print("SUMMARY")
     print("=" * 70)
     print("""
-The verify() pipeline:
+The conformal_reach() pipeline:
 
 1. INPUTS:
    - model: Any callable (numpy -> numpy)

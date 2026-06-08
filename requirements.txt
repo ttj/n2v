@@ -6,10 +6,13 @@ numpy>=1.20.0
 scipy>=1.7.0
 torch>=2.0.0
 cvxpy>=1.2.0
+networkx>=2.6      # required by Hexatope
+torchdiffeq>=0.2.3 # required by FlowODE / log-det scores
 
 # Optional: For examples
 matplotlib>=3.3.0
 torchvision>=0.15.0
+scikit-learn>=1.0.0  # GMMScore (n2v.probabilistic.flow) + exp3 score baselines
 
 # Optional: For Jupyter notebooks
 jupyter>=1.0.0

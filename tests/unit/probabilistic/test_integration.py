@@ -28,12 +28,12 @@ class TestImports:
     def test_probabilistic_module_importable_from_n2v(self):
         """Test that probabilistic module can be imported from n2v."""
         from n2v import probabilistic
-        assert hasattr(probabilistic, 'verify')
+        assert hasattr(probabilistic, 'conformal_reach')
 
-    def test_verify_importable_from_probabilistic(self):
-        """Test that verify can be imported from n2v.probabilistic."""
-        from n2v.probabilistic import verify
-        assert callable(verify)
+    def test_conformal_reach_importable_from_probabilistic(self):
+        """Test that conformal_reach can be imported from n2v.probabilistic."""
+        from n2v.probabilistic import conformal_reach
+        assert callable(conformal_reach)
 
 
 class TestNeuralNetworkReach:
@@ -169,7 +169,7 @@ class TestHybridMethod:
 class TestProbabilisticBoxWithVerifySpecification:
     """Tests for verify_specification with ProbabilisticBox."""
 
-    def test_verify_specification_accepts_probabilistic_box(self):
+    def test_conformal_reach_specification_accepts_probabilistic_box(self):
         """Test that verify_specification() accepts ProbabilisticBox."""
         from n2v.utils.verify_specification import verify_specification
         from n2v.sets import HalfSpace
@@ -192,8 +192,9 @@ class TestProbabilisticBoxWithVerifySpecification:
             warnings.simplefilter("ignore")
             result = verify_specification([pbox], unsafe_region)
 
-        # Result is an int: 1 = safe, 0 = unsafe, 2 = unknown
-        assert result in (0, 1, 2)
+        # Result is a VerificationResult with verdict in
+        # {'SAT', 'UNSAT', 'UNKNOWN'}.
+        assert result.verdict in ('SAT', 'UNSAT', 'UNKNOWN')
 
 
 class TestProbabilisticBoxOperations:

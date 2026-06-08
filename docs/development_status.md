@@ -85,6 +85,8 @@ All set types support: `from_bounds()`, `affine_map()`, `get_ranges()`, `estimat
 | `exact` | Sound and complete | Star splitting at nonlinear layers |
 | `approx` | Sound (over-approximate) | Triangle/S-curve relaxation, no splitting |
 | `probabilistic` | Coverage with confidence | Conformal inference, model-agnostic |
+| `conformal` | Coverage with confidence | Calibrated conformal reach via `conformal_reach` / `ConformalReachConfig` |
+| `flow_matching` | Coverage with confidence | Flow-matching probabilistic reach via `flow_reach` / `FlowReachConfig` |
 | `hybrid` | Mixed | Exact until star/time threshold, then probabilistic fallback |
 
 ### Falsification
@@ -154,8 +156,7 @@ Soundness test coverage exists for: Linear, ReLU, LeakyReLU, Sigmoid, Tanh, Conv
 | Document | Description |
 |----------|-------------|
 | `README.md` | Project overview, usage guide, API reference |
-| `CLAUDE.md` | Architecture reference for AI assistants |
-| `docs/theoretical_foundations.md` | Mathematical details for all layers, relaxations, algorithms |
+| `docs/theory/theoretical-foundations.md` | Mathematical details for all layers, relaxations, algorithms |
 | `docs/probabilistic_verification.md` | Conformal inference theory and API guide |
 | `docs/lp_solvers.md` | LP solver selection and benchmarking guide |
 | `examples/ACASXu/README.md` | ACAS Xu benchmark guide |

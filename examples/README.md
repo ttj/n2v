@@ -25,6 +25,7 @@ python verify_fc.py
 | [ACASXu/](ACASXu/) | ACAS Xu benchmark (186 instances, VNN-COMP format) |
 | [VNN-COMP/](VNN-COMP/) | VNN-COMP 2025 infrastructure (28 benchmarks) |
 | [ProbVer/](ProbVer/) | Probabilistic verification via conformal inference |
+| [FlowConformal/](FlowConformal/) | Flow-matching probabilistic reachability (paper experiments, benchmarks, baselines) |
 | [Octatope/](Octatope/) | Hexatope/Octatope set comparisons |
 | [CompareNNV/](CompareNNV/) | Comparison with MATLAB NNV |
 | [CompareReachability/](CompareReachability/) | Reachability method comparisons |

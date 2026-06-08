@@ -168,14 +168,14 @@ def verify_instance(
                     )
                     verdict = verify_specification(reach_sets, property_spec)
 
-                    if verdict == 0:
+                    if verdict.verdict == "SAT":
                         return {
                             'result': RESULT_SAT,
                             'time': time.time() - t_start,
                             'method': reach_method,
                             'counterexample': None,
                         }
-                    elif verdict == 1:
+                    elif verdict.verdict == "UNSAT":
                         continue
                     else:
                         all_unsat = False
