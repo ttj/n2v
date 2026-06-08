@@ -1,9 +1,0 @@
-[smoke] cifar10_resnet110: running only the first instance
-[cifar10_resnet110 1/1 t=0s budget=300s] idx=0 cifar10_test_0000_label_3
-    verdict=UNKNOWN  wall=3.90s
-
-=== Sweep complete ===
-Wrote /home/sasakis/v/tools/n2v/examples/FlowConformal/experiments/exp2_prob_scale/outputs/exp2_cifar10_resnet110_rs.csv
-Total wall-clock: 0.1 min
-Counts: {'UNSAT': 0, 'SAT': 0, 'UNKNOWN': 1, 'NOT_APPLICABLE': 0, 'ERROR': 0, 'TIMEOUT': 0}
-[smoke] PASS on cifar10_resnet110: RS ran (verdict=UNKNOWN).
