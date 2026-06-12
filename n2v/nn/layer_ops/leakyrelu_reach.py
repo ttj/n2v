@@ -389,31 +389,35 @@ def _leakyrelu_single_zono(I: Zono, gamma: float) -> Zono:
             pass
 
         else:
-            # Crosses zero — over-approximation
-            # Secant slope: a = (ub - gamma*lb) / (ub - lb)
-            a = (ui - gamma * li) / (ui - li) if (ui - li) != 0 else 1.0
+            # Crosses zero — over-approximate with the exact envelope
+            # band (issue #16). The secant through (li, gamma*li) and
+            # (ui, ui) has slope ``a`` and intercept ``b_u``; since
+            # LeakyReLU is piecewise linear with its kink at 0, the
+            # residual f(x) - a*x on [li, ui] attains its extremes at
+            # the kink (value 0) and at the endpoints (value b_u):
+            #
+            #     f(x) - a*x  in  [min(0, b_u), max(0, b_u)]
+            #
+            # Centre the affine part mid-band and add ONE error
+            # generator of radius |b_u| / 2 (the DeepZ form; the band is
+            # the tightest parallel envelope). Handles gamma > 1 too,
+            # where b_u < 0 and the band flips sides.
+            #
+            # The previous code's ``shift`` was algebraically equal to
+            # b_u (the affine part WAS the upper secant) and both of its
+            # ``error`` formulas evaluated to exactly zero, so no
+            # generator was ever added: the output collapsed to the
+            # secant line and excluded true outputs for correlated
+            # inputs (issue #16 repro: f(0,0) = (0,0) excluded by 0.99).
+            a = (ui - gamma * li) / (ui - li)
+            b_u = gamma * li - a * li
 
-            # y ≈ a*x + shift, where shift centers the approximation
-            # Upper bound at lb: a*lb + shift_u = gamma*lb → shift_u = (gamma - a)*lb
-            # Upper bound at ub: a*ub + shift_u vs ub → may exceed
-            # Use midpoint of upper and lower intercepts
-            y_at_lb = gamma * li
-            y_at_ub = ui
-            midpoint = 0.5 * (y_at_lb + y_at_ub)
-            linear_at_mid = a * 0.5 * (li + ui)
-            shift = midpoint - linear_at_mid
-
-            new_c[i] = a * I.c[i, 0] + shift
+            new_c[i] = a * I.c[i, 0] + 0.5 * b_u
             new_V[i, :n_orig] = a * I.V[i, :]
 
-            # Error generator: half the gap between upper and lower envelopes
-            error = 0.5 * abs(ui - gamma * li) - 0.5 * abs(a * (ui - li))
-            if error < 0:
-                error = 0.5 * max(abs(y_at_ub - (a * ui + shift)),
-                                  abs(y_at_lb - (a * li + shift)))
-            if error > 1e-10:
-                error_gen = np.zeros((I.dim, 1))
-                error_gen[i] = error
+            if b_u != 0.0:
+                error_gen = np.zeros((new_V.shape[0], 1))
+                error_gen[i] = 0.5 * abs(b_u)
                 new_V = np.hstack([new_V, error_gen])
 
     return Zono(new_c, new_V)
