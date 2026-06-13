@@ -103,7 +103,13 @@ def get_input_shape(onnx_path):
     if not inputs:
         raise ValueError(f"no true input tensor in {onnx_path}")
     dims = inputs[0].type.tensor_type.shape.dim
-    return tuple(d.dim_value for i, d in enumerate(dims) if i != 0)
+    vals = tuple(d.dim_value for d in dims)
+    # Strip the leading dim only when it looks like a batch dim
+    # (1, or 0 = dynamic). A rank-1 input (e.g. a flat vector packing
+    # image + spec params) has no batch dim to strip.
+    if len(vals) > 1 and vals[0] in (0, 1):
+        vals = vals[1:]
+    return vals
 
 
 def create_input_set(lb, ub, input_shape):
@@ -122,6 +128,11 @@ def create_input_set(lb, ub, input_shape):
     if len(input_shape) >= 3 and len(nontrivial) >= 2:
         H, W = nontrivial[-2], nontrivial[-1]
         C = int(np.prod(nontrivial[:-2])) if len(nontrivial) > 2 else 1
+        # VNN-LIB X variables follow the ONNX input tensor order, i.e.
+        # (C, H, W) row-major; ImageStar.from_bounds expects HWC. For
+        # C == 1 the permutation is the identity.
+        lb = lb.reshape(C, H, W).transpose(1, 2, 0).reshape(-1, 1)
+        ub = ub.reshape(C, H, W).transpose(1, 2, 0).reshape(-1, 1)
         return ImageStar.from_bounds(lb, ub, height=H, width=W, num_channels=C)
     return Star.from_bounds(lb, ub)
 
@@ -200,9 +211,8 @@ def verify_instance(onnx_path, vnnlib_path, category, workers=None):
             input_set = create_input_set(pair["lb"], pair["ub"], input_shape)
             try:
                 extra = dict(kwargs)
-                if method == "probabilistic":
-                    extra["input_shape"] = input_shape
-                else:
+                extra["input_shape"] = input_shape
+                if method != "probabilistic":
                     extra["precompute_bounds"] = "ibp"
                 reach_sets = net.reach(input_set, method=method, **extra)
                 verdict = verify_specification(reach_sets, pair["prop"])

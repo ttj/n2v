@@ -78,11 +78,35 @@ def sign_star(
     lp_solver: str = 'default',
     **kwargs,
 ) -> List[Star]:
-    """Sign activation reachability for Star sets."""
+    """Sign activation reachability for Star sets.
+
+    Sign is element-wise, so ImageStar inputs are processed flat and
+    converted back to their spatial shape afterwards (the per-dim range
+    machinery below is written for flat stars).
+    """
+    from n2v.sets.image_star import ImageStar
+
+    spatial = [
+        (s.height, s.width, s.num_channels) if isinstance(s, ImageStar)
+        else None
+        for s in input_stars
+    ]
+    flat = [s.to_star() if isinstance(s, ImageStar) else s
+            for s in input_stars]
+
     if method == 'exact':
-        return _sign_star_exact(input_stars, lp_solver)
+        results = _sign_star_exact(flat, lp_solver)
     else:
-        return _sign_star_approx(input_stars, lp_solver)
+        results = _sign_star_approx(flat, lp_solver)
+
+    # exact mode can split one input into several stars; only restore
+    # the image type in the 1:1 case
+    if len(results) == len(spatial):
+        results = [
+            r.to_image_star(*dims) if dims is not None else r
+            for r, dims in zip(results, spatial)
+        ]
+    return results
 
 
 def _sign_star_approx(input_stars: List[Star], lp_solver: str = 'default') -> List[Star]:

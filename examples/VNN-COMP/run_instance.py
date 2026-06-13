@@ -150,9 +150,8 @@ def verify_instance(
                 input_set = create_input_set(pair['lb'], pair['ub'], input_shape)
                 try:
                     extra_kwargs = dict(reach_kwargs)
-                    if reach_method == 'probabilistic':
-                        extra_kwargs['input_shape'] = input_shape
-                    else:
+                    extra_kwargs['input_shape'] = input_shape
+                    if reach_method != 'probabilistic':
                         extra_kwargs['precompute_bounds'] = 'ibp'
 
                     reach_sets = net.reach(
