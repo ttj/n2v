@@ -1699,4 +1699,21 @@ class TestStarIsEmptySet:
                         np.empty((0, 1)), np.empty((0, 1)))
         assert not nonempty.is_empty_set()
 
+    def test_point_tiny_negative_d_within_tolerance_not_empty(self):
+        """A constraint violated only within the -1e-9 tolerance band counts as
+        feasible, not empty. Locks the tolerance contract: ``d_i = -1e-12`` is
+        treated as ``0 <= 0`` numerical slack, so the point Star is non-empty."""
+        V = np.array([[2.0], [5.0]])
+        s = Star(V, np.empty((1, 0)), np.array([[-1e-12]]),
+                 np.empty((0, 1)), np.empty((0, 1)))
+        assert not s.is_empty_set()
+
+    def test_point_negative_d_outside_tolerance_is_empty(self):
+        """Just past the tolerance band (``d_i = -1e-6 < -1e-9``) the row
+        ``0 <= d_i`` is infeasible, so the point Star is empty."""
+        V = np.array([[2.0], [5.0]])
+        s = Star(V, np.empty((1, 0)), np.array([[-1e-6]]),
+                 np.empty((0, 1)), np.empty((0, 1)))
+        assert s.is_empty_set()
+
 

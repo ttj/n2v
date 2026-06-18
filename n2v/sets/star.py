@@ -699,8 +699,7 @@ class Star:
         # row demands ``0 <= d_i`` with ``d_i < 0``. This case can't go through
         # check_feasibility: a zero-column C means a zero-variable LP, whose
         # dimension the solver derives from C.shape[1] and so cannot form.
-        n_var = self.V.shape[1] - 1
-        if n_var == 0:
+        if self.nVar == 0:
             d = np.asarray(self.d).flatten()
             if d.size > 0:
                 return bool(np.any(d < -1e-9))

@@ -302,6 +302,38 @@ class _SoftmaxNet(nn.Module):
         return self.softmax(self.fc2(torch.relu(self.fc1(x))))
 
 
+class _FunctionalSoftmaxNet(nn.Module):
+    """MLP ending in a *functional* softmax (call_function, not a module).
+
+    Traces to a graph whose output is produced by a torch.nn.functional.softmax
+    call rather than an nn.Softmax module.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(4, 8)
+        self.fc2 = nn.Linear(8, 3)
+
+    def forward(self, x):
+        return torch.nn.functional.softmax(self.fc2(torch.relu(self.fc1(x))), dim=-1)
+
+
+class _MethodSoftmaxNet(nn.Module):
+    """MLP ending in a tensor-method softmax (``x.softmax(-1)``).
+
+    Traces to a graph whose output is produced by a call_method node (target
+    'softmax') rather than a module or a call_function.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(4, 8)
+        self.fc2 = nn.Linear(8, 3)
+
+    def forward(self, x):
+        return self.fc2(torch.relu(self.fc1(x))).softmax(dim=-1)
+
+
 class TestStripFinalSoftmax:
     """Tests for strip_final_softmax (Sequential and fx GraphModule paths)."""
 
@@ -378,6 +410,38 @@ class TestStripFinalSoftmax:
 
         assert torch.allclose(torch.softmax(stripped(x), dim=-1), gm(x), atol=1e-6)
         assert torch.equal(stripped(x).argmin(dim=-1), gm(x).argmin(dim=-1))
+
+    def test_graph_module_removes_functional_softmax(self):
+        """A trailing functional softmax (call_function) is detected and
+        stripped, leaving the model outputting pre-softmax logits."""
+        torch.manual_seed(0)
+
+        gm = torch.fx.symbolic_trace(_FunctionalSoftmaxNet())
+        gm.eval()
+        x = torch.randn(5, 4)
+        assert has_softmax(gm), "Functional softmax should be detected before stripping"
+
+        stripped = strip_final_softmax(gm)
+
+        assert not has_softmax(stripped), "Functional softmax should be stripped"
+        assert torch.allclose(torch.softmax(stripped(x), dim=-1), gm(x), atol=1e-6)
+        assert torch.equal(stripped(x).argmax(dim=-1), gm(x).argmax(dim=-1))
+
+    def test_graph_module_removes_method_softmax(self):
+        """A trailing tensor-method softmax (call_method) is detected and
+        stripped, leaving the model outputting pre-softmax logits."""
+        torch.manual_seed(0)
+
+        gm = torch.fx.symbolic_trace(_MethodSoftmaxNet())
+        gm.eval()
+        x = torch.randn(5, 4)
+        assert has_softmax(gm), "Method softmax should be detected before stripping"
+
+        stripped = strip_final_softmax(gm)
+
+        assert not has_softmax(stripped), "Method softmax should be stripped"
+        assert torch.allclose(torch.softmax(stripped(x), dim=-1), gm(x), atol=1e-6)
+        assert torch.equal(stripped(x).argmax(dim=-1), gm(x).argmax(dim=-1))
 
 
 class TestStripFinalSoftmaxEdgeCases:
@@ -456,3 +520,83 @@ class TestHasSoftmax:
             nn.ReLU(),
         )
         assert has_softmax(model) is True
+
+    def test_no_functional_softmax_in_graph_module(self):
+        """A GraphModule without any softmax reports False."""
+        gm = torch.fx.symbolic_trace(
+            nn.Sequential(nn.Linear(4, 8), nn.ReLU(), nn.Linear(8, 3))
+        )
+        assert has_softmax(gm) is False
+
+
+def _load_onnx_softmax_model(opset, op="Softmax"):
+    """Build a tiny Gemm -> {Softmax|LogSoftmax} ONNX model at the given opset
+    and load it through n2v's real load_onnx path.
+
+    onnx2torch converts an ONNX Softmax/LogSoftmax at opset <= 11 to its
+    OnnxSoftmaxV1V11 wrapper (not an nn.Softmax); opset >= 13 maps Softmax to
+    nn.Softmax. Skips if onnx / onnx2torch are unavailable.
+    """
+    import os
+    import tempfile
+
+    onnx = pytest.importorskip("onnx")
+    pytest.importorskip("onnx2torch")
+    import numpy as np
+    from onnx import TensorProto, helper
+
+    from n2v.utils.model_loader import load_onnx
+
+    rng = np.random.RandomState(0)
+    X = helper.make_tensor_value_info("X", TensorProto.FLOAT, [1, 4])
+    Y = helper.make_tensor_value_info("Y", TensorProto.FLOAT, [1, 4])
+    W = helper.make_tensor(
+        "W", TensorProto.FLOAT, [4, 4], rng.randn(4, 4).astype(np.float32).flatten()
+    )
+    B = helper.make_tensor("B", TensorProto.FLOAT, [4], rng.randn(4).astype(np.float32))
+    nodes = [
+        helper.make_node("Gemm", ["X", "W", "B"], ["H"]),
+        helper.make_node(op, ["H"], ["Y"], axis=1),
+    ]
+    graph = helper.make_graph(nodes, "g", [X], [Y], initializer=[W, B])
+    model = helper.make_model(graph, opset_imports=[helper.make_opsetid("", opset)])
+    model.ir_version = 7
+
+    with tempfile.NamedTemporaryFile(suffix=".onnx", delete=False) as f:
+        onnx.save(model, f.name)
+        path = f.name
+    try:
+        return load_onnx(path)
+    finally:
+        os.unlink(path)
+
+
+class TestStripFinalSoftmaxOnnxWrapper:
+    """strip_final_softmax / has_softmax cover onnx2torch's OnnxSoftmaxV1V11,
+    the module an ONNX Softmax at opset <= 11 converts to. It is not an
+    nn.Softmax subclass, so the plain isinstance check used to miss it.
+
+    Exercised end-to-end through the real load_onnx -> onnx2torch path."""
+
+    def test_graph_module_strips_opset11_softmax(self):
+        """A real opset-11 ONNX Softmax (an OnnxSoftmaxV1V11 call_module in the
+        onnx2torch GraphModule) is detected and stripped down to logits."""
+        gm = _load_onnx_softmax_model(11, "Softmax")
+        x = torch.randn(5, 4)
+        assert has_softmax(gm) is True
+
+        stripped = strip_final_softmax(gm)
+
+        assert has_softmax(stripped) is False
+        assert torch.allclose(torch.softmax(stripped(x), dim=-1), gm(x), atol=1e-5)
+        assert torch.equal(stripped(x).argmax(-1), gm(x).argmax(-1))
+
+    def test_graph_module_keeps_opset11_logsoftmax(self):
+        """A real opset-11 ONNX LogSoftmax is not a plain softmax; left as-is."""
+        gm = _load_onnx_softmax_model(11, "LogSoftmax")
+        x = torch.randn(5, 4)
+        assert has_softmax(gm) is False
+
+        stripped = strip_final_softmax(gm)
+
+        assert torch.allclose(stripped(x), gm(x), atol=1e-6)

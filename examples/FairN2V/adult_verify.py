@@ -151,7 +151,11 @@ def main(config=None):
 
         # Load the ONNX file and wrap it for verification
         netONNX = load_onnx(onnx_path)
-        # Drop the trailing softmax so Star reachability can run on the logits
+        # Drop the trailing softmax and verify on the logits. Sound here
+        # because the fairness specs are over the predicted class (here the
+        # argmin -- smallest logit, see class_type='min' below), and softmax
+        # preserves the ordering; this would be unsound for a spec phrased
+        # over softmax probabilities.
         netONNX = strip_final_softmax(netONNX)
         net = NeuralNetwork(netONNX)
 
