@@ -650,3 +650,62 @@ class TestReLUOctatopeSoundness:
         output_lb, output_ub = output_octatopes[0].estimate_ranges()
         assert np.allclose(output_lb, expected_lb, atol=1e-6)
         assert np.allclose(output_ub, expected_ub, atol=1e-6)
+
+
+class TestReLUStarRelaxBoundRegression:
+    """Regression tests for issue #15: ``relax_method='bound'`` left
+    LP-selected crossing neurons entirely unconstrained.
+
+    On the line star {(a, -a) : a in [-1, 1]} both neurons cross zero and
+    both were selected for ub-optimization; their refined maxima stayed
+    positive, so they landed in neither ``unselected`` nor the
+    lb-optimized set and received NO triangle constraints -- the output
+    was the unchanged input star, excluding the true output (1, 0).
+    """
+
+    def _line_star(self):
+        from n2v.sets import Star
+        V = np.array([[0.0, 1.0], [0.0, -1.0]])
+        C = np.zeros((1, 1))
+        d = np.ones((1, 1))
+        return Star(V, C, d, np.array([[-1.0]]), np.array([[1.0]]))
+
+    def test_line_star_vertex_contained(self):
+        from n2v.nn.layer_ops.relu_reach import relu_star_approx
+        outs = relu_star_approx(
+            [self._line_star()], relax_factor=0.5, relax_method='bound')
+        vertex = np.array([[1.0], [0.0]])
+        assert any(o.contains(vertex) for o in outs), (
+            "true output relu(1, -1) = (1, 0) must be contained "
+            "(issue #15: 'bound' left crossing neurons unconstrained)")
+
+    def test_bound_pushforward_containment_sweep(self):
+        """Monte-Carlo pushforward containment across relax factors."""
+        from n2v.sets import Star
+        from n2v.nn.layer_ops.relu_reach import relu_star_approx
+        rng = np.random.default_rng(0)
+        for _ in range(10):
+            n = int(rng.integers(2, 5))
+            lo = rng.uniform(-2.0, 0.5, n)
+            hi = lo + rng.uniform(0.1, 2.5, n)
+            for rf in (0.25, 0.5, 0.75, 1.0):
+                outs = relu_star_approx(
+                    [Star.from_bounds(lo.reshape(-1, 1), hi.reshape(-1, 1))],
+                    relax_factor=rf, relax_method='bound')
+                for _ in range(8):
+                    x = rng.uniform(lo, hi)
+                    y = np.maximum(x, 0.0).reshape(-1, 1)
+                    assert any(o.contains(y) for o in outs), (
+                        f"pushforward point escaped 'bound' reach "
+                        f"(rf={rf}, x={x})")
+
+    def test_bound_never_looser_than_input_negative_orthant(self):
+        """The output must never claim negative values are reachable."""
+        from n2v.nn.layer_ops.relu_reach import relu_star_approx
+        outs = relu_star_approx(
+            [self._line_star()], relax_factor=0.5, relax_method='bound')
+        for o in outs:
+            lo, hi = o.get_ranges()
+            assert np.all(np.asarray(lo) >= -1e-8), (
+                "ReLU output admits negative values "
+                "(crossing neuron kept its identity row)")

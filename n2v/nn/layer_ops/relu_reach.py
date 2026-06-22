@@ -828,18 +828,16 @@ def _relu_single_star_relax_bound(
     map21 = map2[ub_idx] if len(ub_idx) > 0 else np.array([], dtype=int)  # Optimize ub
     map22 = map2[lb_idx] if len(lb_idx) > 0 else np.array([], dtype=int)  # Optimize lb
 
-    # Optimize upper bounds
+    # Optimize upper bounds via LP for the selected neurons.
     if len(map21) > 0:
         xmax = _get_maxs(I, map21, lp_solver)
         map3 = np.where(xmax <= 0)[0]
         map4 = map21[map3] if len(map3) > 0 else np.array([], dtype=int)
-        map5 = np.where(xmax > 0)[0]
-        map6 = map21[map5] if len(map5) > 0 else np.array([], dtype=int)
-        np.concatenate([map1, map4]) if len(map4) > 0 else map1
     else:
+        xmax = np.array([])
         map4 = np.array([], dtype=int)
-        map6 = np.array([], dtype=int)
 
+    # Neurons proven inactive by the refined upper bound: reset rows.
     In = In if len(map4) == 0 else _reset_star_rows(In, map4)
 
     # Remove newly inactive neurons from lb optimization list
@@ -848,46 +846,42 @@ def _relu_single_star_relax_bound(
     else:
         map23 = map22
 
-    # Optimize lower bounds
+    # Optimize lower bounds via LP for the selected neurons.
     if len(map23) > 0:
         xmin = _get_mins(I, map23, lp_solver)
-        map7 = np.where(xmin < 0)[0]
-        map8 = map23[map7] if len(map7) > 0 else np.array([], dtype=int)
         map9 = np.where(xmin >= 0)[0]
-        map23[map9] if len(map9) > 0 else np.array([], dtype=int)
+        proven_active = map23[map9] if len(map9) > 0 else np.array([], dtype=int)
     else:
-        map8 = np.array([], dtype=int)
-        np.array([], dtype=int)
+        xmin = np.array([])
+        proven_active = np.array([], dtype=int)
 
-    # Gather all neurons needing approximation
-    # Include neurons not selected for optimization
-    unselected = np.setdiff1d(map2, np.concatenate([map21, map22]))
-    crossing_neurons = np.concatenate([unselected, map8]) if len(map8) > 0 else unselected
+    # Issue #15 fix: EVERY neuron that still crosses zero must receive
+    # triangle constraints. The previous logic constrained only
+    # ``unselected + (lb-optimized still-negative)`` -- ub-optimized
+    # neurons whose refined max stayed positive were left with
+    # unconstrained identity rows, so the output star excluded true
+    # outputs by O(1) (line-star repro in issue #15: the output was the
+    # unchanged input star).
+    #
+    # Still-crossing = map2
+    #   minus proven-inactive (map4: refined ub <= 0, rows reset above)
+    #   minus proven-active  (refined lb >= 0, identity rows are exact).
+    refined_ub = {int(i): float(v) for i, v in zip(map21, xmax)}
+    refined_lb = {int(i): float(v) for i, v in zip(map23, xmin)}
+
+    n_drop = len(map4) + len(proven_active)
+    drop = (np.concatenate([map4, proven_active])
+            if n_drop > 0 else np.array([], dtype=int))
+    crossing_neurons = np.setdiff1d(map2, drop)
 
     if len(crossing_neurons) == 0:
         return In
 
-    # Get bounds for all crossing neurons
-    lbs = []
-    ubs = []
-    for idx in crossing_neurons:
-        if idx in map8:
-            # Optimized bound
-            np.where(map8 == idx)[0][0]
-            lbs.append(xmin[np.where(map23 == idx)[0][0]])
-            # Need to get ub - check if it was optimized
-            if idx in map6:
-                np.where(map6 == idx)[0][0]
-                ubs.append(xmax[np.where(map21 == idx)[0][0]])
-            else:
-                ubs.append(ub[idx])
-        else:
-            # Not optimized, use estimated
-            lbs.append(lb[idx])
-            ubs.append(ub[idx])
-
-    lb_arr = np.array(lbs)
-    ub_arr = np.array(ubs)
+    # Best-available bounds: LP-refined where computed, estimated otherwise.
+    lb_arr = np.array(
+        [refined_lb.get(int(i), lb[i]) for i in crossing_neurons])
+    ub_arr = np.array(
+        [refined_ub.get(int(i), ub[i]) for i in crossing_neurons])
 
     result = _apply_triangle_approx_multi(In, crossing_neurons, lb_arr, ub_arr)
 
