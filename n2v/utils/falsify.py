@@ -557,13 +557,17 @@ def _batch_total_margin(outs: np.ndarray, group_arrays) -> np.ndarray:
     ``outs``: (N, out_dim). Returns (N,) where a value <= 0 means the point lies in
     the unsafe region (a counterexample). Mirrors ``_output_satisfies_property``:
     AND across groups (max), OR within a group (min over halfspaces), all rows of a
-    halfspace must hold (max over rows of ``G @ y - g``).
+    halfspace must hold (max over rows of ``G @ y - g``). ``HalfSpace.contains``'s
+    numerical tolerance (``G @ y <= g + 1e-8``) is baked in by subtracting it from
+    the aggregated margin, so the ``<= 0`` test agrees with the canonical check at
+    the boundary (the constant tolerance distributes through the monotone max/min).
     """
     group_margins = []
     for group in group_arrays:
         hs_margins = [(outs @ G.T - g).max(axis=1) for G, g in group]  # each (N,)
         group_margins.append(np.min(np.stack(hs_margins, axis=1), axis=1))  # OR -> min
-    return np.max(np.stack(group_margins, axis=1), axis=1)  # AND -> max
+    # Subtract HalfSpace.contains' +1e-8 tolerance so `margin <= 0` mirrors canonical.
+    return np.max(np.stack(group_margins, axis=1), axis=1) - 1e-8  # AND -> max
 
 
 def _falsify_square(
@@ -616,12 +620,15 @@ def _falsify_square(
     if bm <= 0 and _output_satisfies_property(by[0], groups):
         return 0, (best, by[0])
 
-    evals = 0
+    evals = 1  # the initial forward(best[None]) above counts against the budget
     while evals < n_iters:
+        # Clamp the final batch so total model evaluations never exceed n_iters
+        # (keeps the budget exact and comparable across `batch` sizes).
+        cur_batch = min(batch, n_iters - evals)
         frac = max(p_init * (1.0 - evals / max(n_iters, 1)), 0.02)
         blk = max(1, int(frac * d))
-        cand = np.tile(best, (batch, 1))
-        for i in range(batch):
+        cand = np.tile(best, (cur_batch, 1))
+        for i in range(cur_batch):
             idx = rng.choice(d, size=blk, replace=False)
             if rng.random() < 0.5:
                 # box extremes (optimal for L-inf perturbation-ball CEs)
@@ -630,7 +637,7 @@ def _falsify_square(
                 # interior values (VNN-LIB CEs are not always at a box corner)
                 cand[i, idx] = rng.uniform(lbf[idx], ubf[idx]).astype(np.float32)
         outs = forward(cand)
-        evals += batch
+        evals += cur_batch
         m = _batch_total_margin(outs, garr)
         j = int(np.argmin(m))
         if m[j] < bm:
