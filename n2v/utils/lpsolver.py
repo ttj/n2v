@@ -31,6 +31,72 @@ SCIPY_SOLVERS = {m.value for m in LPSolver if m.is_scipy()}
 _HIGHSPY_BATCH_SOLVERS = {m.value for m in LPSolver if m.is_highspy_batch_eligible()}
 
 
+# --- optional LP profiler (env-gated; INERT unless N2V_LP_PROF is set) -------
+# Measures the LP-time fraction R1 (LP solve time / reach time) + LP count/sizes,
+# to gate the GPU/LP-avoidance decision (status repo research/gpu/GPU_STRATEGY.md).
+# When N2V_LP_PROF is unset the decorator returns the original function unchanged
+# (literal identity, zero overhead). Compatible with the LPSolver-enum refactor:
+# wraps generically via *a/**k and only reads objectives/f (arg 0) and A (arg 1),
+# whose positions are unchanged by the added lp_solver kwarg.
+import os as _os, time as _time, atexit as _atexit, functools as _functools
+_PROF_PATH = _os.environ.get('N2V_LP_PROF')
+_PROF = {'calls': 0, 'lps': 0, 't': 0.0, 'nvar': [], 'ncon': []}
+_PROF_DEPTH = {'d': 0}
+
+
+def _prof_wrap(is_batch):
+    """Decorator: time the OUTERMOST LP entry (re-entrancy-guarded to avoid
+    double-counting nested calls, e.g. check_feasibility -> solve_lp)."""
+    def deco(fn):
+        if not _PROF_PATH:
+            return fn
+
+        @_functools.wraps(fn)
+        def w(*a, **k):
+            outer = _PROF_DEPTH['d'] == 0
+            _PROF_DEPTH['d'] += 1
+            t0 = _time.perf_counter()
+            try:
+                return fn(*a, **k)
+            finally:
+                _PROF_DEPTH['d'] -= 1
+                if outer:
+                    dt = _time.perf_counter() - t0
+                    A = a[1] if len(a) > 1 else k.get('A')
+                    ncon = A.shape[0] if (A is not None and hasattr(A, 'shape')) else 0
+                    if is_batch:
+                        objs = a[0] if a else k.get('objectives', [])
+                        n_lps = len(objs)
+                        nvar = int(np.asarray(objs[0]).size) if n_lps else 0
+                    else:
+                        f0 = a[0] if a else k.get('f')
+                        n_lps = 1
+                        nvar = int(np.asarray(f0).size) if f0 is not None else 0
+                    # Skip empty-objective batch calls (n_lps == 0): they do no LP
+                    # work and would skew the nVar/nCon medians with zeros.
+                    if n_lps:
+                        _PROF['calls'] += 1
+                        _PROF['lps'] += n_lps
+                        _PROF['t'] += dt
+                        _PROF['nvar'].append(nvar)
+                        _PROF['ncon'].append(ncon)
+        return w
+    return deco
+
+
+@_atexit.register
+def _prof_dump():
+    if not _PROF_PATH or _PROF['lps'] == 0:
+        return
+    nv = np.asarray(_PROF['nvar']); nc = np.asarray(_PROF['ncon'])
+    with open(_PROF_PATH, 'a') as _f:
+        _f.write(f"LP_PROF pid={_os.getpid()} calls={_PROF['calls']} lps={_PROF['lps']} "
+                 f"lp_time_s={_PROF['t']:.3f} nVar_med={int(np.median(nv))} nVar_max={int(nv.max())} "
+                 f"nCon_med={int(np.median(nc))} nCon_max={int(nc.max())}\n")
+# ---------------------------------------------------------------------------
+
+
+@_prof_wrap(True)
 def solve_lp_batch(
     objectives: List[np.ndarray],
     A: Optional[np.ndarray] = None,
@@ -292,6 +358,7 @@ def _solve_lp_highspy(
     return None, None, 'infeasible', {'solver': 'highspy'}
 
 
+@_prof_wrap(False)
 def solve_lp(
     f: np.ndarray,
     A: Optional[np.ndarray] = None,
