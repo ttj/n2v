@@ -1,8 +1,10 @@
 #!/bin/bash
 # VNN-COMP 2026 installation script for n2v (NNV-Python).
-# Installs into the machine's system python3 via pip (no conda / venv).
+# Installs into the machine's system python3 via pip (the dedicated competition
+# machine). Local-safe mode: run inside a venv or with N2V_LOCAL=1 to skip
+# sudo/apt and install into the active interpreter (safe on a shared machine).
 #
-# Usage: install_tool.sh v1
+# Usage: install_tool.sh v1   (or: N2V_LOCAL=1 install_tool.sh v1)
 
 set -e
 
@@ -22,9 +24,19 @@ REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$REPO_ROOT"
 echo "Repo root: $REPO_ROOT"
 
-# System packages (best-effort; ignore failures on machines without apt/sudo).
-sudo apt-get update -y || true
-sudo apt-get install -y python3-pip git || true
+# Local-safe mode: when run inside a venv (VIRTUAL_ENV set) or with N2V_LOCAL=1,
+# skip the system apt/sudo steps and install into the ACTIVE interpreter -- so a
+# local dry-run on a shared machine never touches system python or runs sudo. The
+# dedicated competition machine (no venv, no N2V_LOCAL) does the full system
+# install as before. (The pip steps below already use `python3 -m pip`, which
+# targets the active venv when one is active.)
+if [ -n "$VIRTUAL_ENV" ] || [ "$N2V_LOCAL" = "1" ]; then
+    echo "Local mode: skipping sudo apt-get; installing into $(command -v python3)."
+else
+    # System packages (best-effort; ignore failures on machines without apt/sudo).
+    sudo apt-get update -y || true
+    sudo apt-get install -y python3-pip git || true
+fi
 
 # Initialize the onnx2torch submodule (model loader depends on it).
 git submodule update --init --recursive
