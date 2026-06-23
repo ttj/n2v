@@ -257,7 +257,12 @@ def get_config(category, onnx_path=None, vnnlib_path=None):
         Dict with:
         - 'reach_methods': list of (method, kwargs) tuples
         - 'n_rand': int
-        - 'falsify_method': str ('random', 'pgd', or 'random+pgd')
+        - 'falsify_method': str — any method in n2v.utils.falsify.METHODS
+          (e.g. 'random', 'random+pgd', 'apgd', 'square', 'strong',
+          'random+square', 'random+apgd'); defaults to 'random+pgd'
+        - 'falsify_kwargs': dict of per-method budget knobs (e.g.
+          {'n_iters': ...} for square, {'n_restarts','n_steps'} for apgd);
+          defaults to {}. The runner whitelists these before calling falsify().
     """
     config = BENCHMARK_CONFIGS.get(category, DEFAULT_CONFIG)
     onnx_path = onnx_path or ''
