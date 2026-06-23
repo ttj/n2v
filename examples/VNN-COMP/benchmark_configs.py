@@ -264,27 +264,30 @@ def get_config(category, onnx_path=None, vnnlib_path=None):
     vnnlib_path = vnnlib_path or ''
 
     falsify_method = config.get('falsify_method', 'random+pgd')
+    # Per-method falsify budgets (e.g. {'n_iters': ...} for square, {'n_restarts','n_steps'}
+    # for apgd). The runner whitelists these before passing to falsify(). Default {}.
+    falsify_kwargs = config.get('falsify_kwargs', {})
 
     # Resolve property-specific methods (acasxu)
     if 'reach_methods_by_prop' in config:
         for key, methods in config['reach_methods_by_prop'].items():
             if key != '_default' and key in vnnlib_path:
-                return {'reach_methods': methods, 'n_rand': config['n_rand'], 'falsify_method': falsify_method}
+                return {'reach_methods': methods, 'n_rand': config['n_rand'], 'falsify_method': falsify_method, 'falsify_kwargs': falsify_kwargs}
         return {
             'reach_methods': config['reach_methods_by_prop']['_default'],
             'n_rand': config['n_rand'],
-            'falsify_method': falsify_method,
+            'falsify_method': falsify_method, 'falsify_kwargs': falsify_kwargs,
         }
 
     # Resolve model-specific methods (cora, nn4sys)
     if 'reach_methods_by_model' in config:
         for key, methods in config['reach_methods_by_model'].items():
             if key != '_default' and key in onnx_path:
-                return {'reach_methods': methods, 'n_rand': config['n_rand'], 'falsify_method': falsify_method}
+                return {'reach_methods': methods, 'n_rand': config['n_rand'], 'falsify_method': falsify_method, 'falsify_kwargs': falsify_kwargs}
         return {
             'reach_methods': config['reach_methods_by_model']['_default'],
             'n_rand': config['n_rand'],
-            'falsify_method': falsify_method,
+            'falsify_method': falsify_method, 'falsify_kwargs': falsify_kwargs,
         }
 
     # Resolve transformer variant (cgan)
@@ -293,11 +296,11 @@ def get_config(category, onnx_path=None, vnnlib_path=None):
             return {
                 'reach_methods': config['reach_methods_transformer'],
                 'n_rand': config['n_rand'],
-                'falsify_method': falsify_method,
+                'falsify_method': falsify_method, 'falsify_kwargs': falsify_kwargs,
             }
 
     return {
         'reach_methods': config.get('reach_methods', DEFAULT_CONFIG['reach_methods']),
         'n_rand': config.get('n_rand', DEFAULT_CONFIG['n_rand']),
-        'falsify_method': falsify_method,
+        'falsify_method': falsify_method, 'falsify_kwargs': falsify_kwargs,
     }

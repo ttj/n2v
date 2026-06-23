@@ -72,6 +72,25 @@ def test_random_pgd_apgd_ensemble_short_circuits():
     assert cex is not None
 
 
+def test_random_apgd_in_methods():
+    from n2v.utils.falsify import METHODS
+    assert 'random+apgd' in METHODS
+
+
+def test_random_apgd_falls_through_to_apgd():
+    """'random+apgd' (random -> APGD, skipping the slow fixed-step PGD leg):
+    with the random leg disabled (n_samples=0), the cascade must reach APGD
+    and still find the counterexample."""
+    net = _LinearNet(dim_in=2, dim_out=2, seed=0)
+    lb = np.array([-1.0, -1.0], dtype=np.float32)
+    ub = np.array([ 1.0,  1.0], dtype=np.float32)
+    hs = HalfSpace(np.array([[1.0, 0.0]]), np.array([[1e6]]))
+    result, cex = falsify(net, lb, ub, hs, method='random+apgd',
+                          seed=0, n_samples=0, n_restarts=2, n_steps=20)
+    assert result == 0
+    assert cex is not None
+
+
 def test_autoattack_scaffold_raises_when_not_installed():
     """If the 'autoattack' package is not installed, method='autoattack'
     raises ImportError with install instructions."""
