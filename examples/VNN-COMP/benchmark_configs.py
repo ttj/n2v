@@ -43,10 +43,12 @@ BENCHMARK_CONFIGS = {
     },
 
     'cersyve': {
-        # NNV uses cp-star; n2v matched via falsification already.
-        # n_rand bumped 100->3000: validated to find more SOUND (CE-validated) sat
-        # (1->4) now that batched random sampling makes it cheap.
-        'reach_methods': [('probabilistic', {'m': 8000, 'epsilon': 0.001, 'surrogate': 'naive'})],
+        # Tier-1 sound-reach (BENCHMARK_SUPPORT); tiny nets (6-20 KB), 100s budget.
+        # Switch probabilistic -> sound [approx, exact] (MIXED 6 sat / 6 unsat): the
+        # probabilistic path can only emit an UNSOUND coverage-set 'unsat' (-150 on a
+        # falsify-missed sat); approx/exact give SOUND holds, falsify gives sat.
+        # Keep n_rand=3000 (validated 1->4 sound sat).
+        'reach_methods': [('approx', {}), ('exact', {})],
         'n_rand': 3000,
     },
 
@@ -191,7 +193,14 @@ BENCHMARK_CONFIGS = {
     },
 
     'ml4acopf_2024': {
-        'reach_methods': [('probabilistic', {'m': 8000, 'epsilon': 0.001, 'surrogate': 'naive'})],
+        # The ONLY empirically-confirmed unsound 'unsat' (GAP_ANALYSIS: ml4acopf x2).
+        # BENCHMARK_SUPPORT lists 14/118-bus as full sound non-linear reach (Pow/Sin/Cos
+        # soundly bounded). Switch probabilistic -> sound approx (drop probabilistic
+        # entirely: MIXED cat, a coverage-set 'unsat' on a missed sat = -150). approx
+        # over-approximates -> any 'unsat' is a true hold; an unsupported op -> unknown.
+        # NOT exact (would blow up on the 930KB/4MB 118/300 nets). MUST gold-validate
+        # (zero wrong unsat) before merge; concede 300_ieee -> [] if approx too slow.
+        'reach_methods': [('approx', {})],
         'n_rand': 100,
     },
 
