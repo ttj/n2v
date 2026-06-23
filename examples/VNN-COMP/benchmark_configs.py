@@ -191,6 +191,15 @@ BENCHMARK_CONFIGS = {
     },
 
     'ml4acopf_2024': {
+        # Falsify with random+apgd (was the random+pgd default). Validated (gold-aware,
+        # 2026-06-23): at nr=3/ns=50 APGD cracks the gold-sat 300_ieee_prop2 (linear-
+        # residual) CE that random/pgd miss and it survives the onnxruntime re-check ->
+        # one more sound +10 sat AND one fewer instance that falls through to the
+        # (unsound) probabilistic reach and emits a false `unsat` (-150). The cheaper
+        # nr=1/ns=30 budget does NOT crack it, so the stronger budget is required here.
+        # Independent of the reach decision (#36). (300_ieee base onnx stays uncrackable.)
+        'falsify_method': 'random+apgd',
+        'falsify_kwargs': {'n_restarts': 3, 'n_steps': 50},
         'reach_methods': [('probabilistic', {'m': 8000, 'epsilon': 0.001, 'surrogate': 'naive'})],
         'n_rand': 100,
     },
