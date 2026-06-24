@@ -52,8 +52,9 @@ except ImportError:
 FalsifyResult = Tuple[int, Optional[Tuple[np.ndarray, np.ndarray]]]
 
 # Available falsification methods
-METHODS = ['random', 'pgd', 'apgd', 'square', 'strong', 'random+pgd',
-           'random+pgd+apgd', 'autoattack']
+METHODS = ['random', 'pgd', 'apgd', 'square', 'strong',
+           'random+pgd', 'random+pgd+apgd', 'random+square', 'random+apgd',
+           'autoattack']
 
 
 def _detect_model_device(model) -> torch.device:
@@ -165,6 +166,21 @@ def falsify(
         if result == 0:
             return result, cex
         result, cex = _falsify_pgd(model, lb, ub, property, seed=seed, **kwargs)
+        if result == 0:
+            return result, cex
+        return _falsify_apgd(model, lb, ub, property, seed=seed, **kwargs)
+    elif method == 'random+square':
+        # random -> gradient-free Square. The right cascade for Sign/binarized
+        # models, where PGD/APGD are pure waste (gradients vanish a.e.).
+        result, cex = _falsify_random(model, lb, ub, property, seed=seed, **kwargs)
+        if result == 0:
+            return result, cex
+        return _falsify_square(model, lb, ub, property, seed=seed, **kwargs)
+    elif method == 'random+apgd':
+        # random -> APGD. For differentiable models: skip the slow fixed-step
+        # PGD leg (APGD's adaptive step schedule dominates it) while staying
+        # bounded via n_restarts/n_steps kwargs.
+        result, cex = _falsify_random(model, lb, ub, property, seed=seed, **kwargs)
         if result == 0:
             return result, cex
         return _falsify_apgd(model, lb, ub, property, seed=seed, **kwargs)

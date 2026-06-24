@@ -203,6 +203,22 @@ class TestFalsifyStrong:
         assert 'square' in METHODS
         assert 'strong' in METHODS
 
+    def test_random_square_registered(self):
+        assert 'random+square' in METHODS
+
+    def test_random_square_falls_through_to_square_on_sign(self):
+        """'random+square' (random -> Square): with the random leg disabled
+        (n_samples=0), the cascade reaches Square and cracks the zero-gradient
+        Sign model where PGD/APGD would be wasted."""
+        model = _SignNet(np.array([[1.0, 1.0]]))
+        lb = np.array([-1.0, -1.0])
+        ub = np.array([1.0, 1.0])
+        hs = HalfSpace(np.array([[-1.0]]), np.array([-0.5]))
+        result, cex = falsify(model, lb, ub, hs, method='random+square',
+                              n_samples=0, n_iters=4000, batch=64, seed=0)
+        assert result == 0, "random+square should crack the Sign model via Square"
+        assert cex is not None
+
     def test_finds_counterexample(self):
         model = nn.Sequential(nn.Linear(2, 2, bias=False))
         model[0].weight.data = torch.eye(2)

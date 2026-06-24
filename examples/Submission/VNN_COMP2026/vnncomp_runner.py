@@ -77,6 +77,21 @@ RESULT_UNSAT = "unsat"
 RESULT_UNKNOWN = "unknown"
 RESULT_TIMEOUT = "timeout"
 
+# Per-method falsify budget knobs that a category config may tune via
+# 'falsify_kwargs'. n_samples/method/seed are passed to falsify() EXPLICITLY by
+# the runner, so they must never be threaded here (would raise a duplicate-arg
+# TypeError); only these budget knobs are honored.
+_FALSIFY_KWARG_WHITELIST = {"n_iters", "batch", "p_init",
+                            "n_restarts", "n_steps", "step_size"}
+
+
+def _whitelist_falsify_kwargs(d):
+    """Keep only the whitelisted per-method budget knobs from a config's
+    falsify_kwargs (dropping anything that falsify() already receives
+    explicitly, or any unknown key)."""
+    return {k: v for k, v in (d or {}).items()
+            if k in _FALSIFY_KWARG_WHITELIST}
+
 
 class _Timeout(BaseException):
     """Raised by the SIGALRM handler. Subclasses BaseException so the
@@ -188,6 +203,9 @@ def verify_instance(onnx_path, vnnlib_path, category, workers=None):
     cfg = get_config(category, onnx_path, vnnlib_path)
     n_rand = cfg.get("n_rand", 100)
     falsify_method = cfg.get("falsify_method", "random+pgd")
+    # Per-method falsify budgets from config (e.g. {'n_iters': 20000} for square,
+    # {'n_restarts': 1, 'n_steps': 30} for apgd), whitelisted to budget knobs only.
+    falsify_kwargs = _whitelist_falsify_kwargs(cfg.get("falsify_kwargs", {}))
 
     workers = _resolve_workers(workers)
     n2v.set_parallel(True, n_workers=workers)
@@ -204,7 +222,8 @@ def verify_instance(onnx_path, vnnlib_path, category, workers=None):
             ub_s = np.asarray(pair["ub"], dtype=np.float64).reshape(input_shape)
             res, cex = falsify(model, lb_s, ub_s, pair["prop"],
                                method=falsify_method,
-                               n_samples=n_rand_per_pair, seed=42)
+                               n_samples=n_rand_per_pair, seed=42,
+                               **falsify_kwargs)
             if res == 0 and cex is not None:
                 # P0.2: re-execute the witness on the RAW ONNX in onnxruntime and
                 # confirm it still lands in the unsafe region (constraints met to

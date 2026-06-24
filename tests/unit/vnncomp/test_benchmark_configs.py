@@ -134,6 +134,10 @@ class TestGetConfig:
             # drift when new sound methods (e.g. 'square'/'strong') are wired.
             assert cfg['falsify_method'] in VALID_FALSIFY_METHODS, \
                 f"{category} has invalid falsify_method: {cfg['falsify_method']}"
+            # falsify_kwargs is optional but must be a dict when present
+            # (the runner whitelists it before passing to falsify()).
+            assert isinstance(cfg.get('falsify_kwargs', {}), dict), \
+                f"{category} falsify_kwargs must be a dict"
             assert isinstance(cfg['reach_methods'], list)
             # An EMPTY reach_methods is valid: it concedes the category to
             # falsification + unknown (e.g. collins_aerospace, a sat-only cat
