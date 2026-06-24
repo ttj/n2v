@@ -43,9 +43,11 @@ BENCHMARK_CONFIGS = {
     },
 
     'cersyve': {
-        # NNV uses cp-star; n2v matched via falsification already
+        # NNV uses cp-star; n2v matched via falsification already.
+        # n_rand bumped 100->3000: validated to find more SOUND (CE-validated) sat
+        # (1->4) now that batched random sampling makes it cheap.
         'reach_methods': [('probabilistic', {'m': 8000, 'epsilon': 0.001, 'surrogate': 'naive'})],
-        'n_rand': 100,
+        'n_rand': 3000,
     },
 
     'cgan_2023': {
@@ -133,10 +135,22 @@ BENCHMARK_CONFIGS = {
     },
 
     'soundnessbench': {
-        # SAT instance — counterexample exists. All layers (Gemm, ReLU, Conv, Flatten)
-        # are fully supported, so use deterministic reachability.
+        # SAT instances — planted/binarized counterexamples. Gradient-free Square
+        # (the 'strong' ensemble) cracks the planted CEs that random+pgd miss
+        # (validated 0->3/10; full-pipeline LIFT +2, REGRESSION 0). Sat-only, so
+        # the sequential 'strong' budget cannot cost a holds.
         'reach_methods': [('approx', {}), ('exact', {})],
         'n_rand': 5000,
+        'falsify_method': 'strong',
+    },
+
+    'soundnessbench_2026': {
+        # 2026 variant (was falling to DEFAULT: n_rand=100, random+pgd -> near-zero
+        # falsification). Mirror the 2025 config: deterministic reach + high n_rand
+        # + gradient-free 'strong' for the planted/binarized CEs.
+        'reach_methods': [('approx', {}), ('exact', {})],
+        'n_rand': 5000,
+        'falsify_method': 'strong',
     },
 
     'tinyimagenet_2024': {
@@ -157,17 +171,21 @@ BENCHMARK_CONFIGS = {
     # =========================================================================
 
     'collins_aerospace_benchmark': {
-        'reach_methods': [('probabilistic', {'m': 8000, 'epsilon': 0.001, 'surrogate': 'naive'})],
+        # Sat-only (0 holds in gold). Drop the probabilistic reach: it can only
+        # emit an UNSOUND 'unsat' (a coverage set, not a proof) and there are no
+        # holds to gain. Concede to falsification + unknown (sound).
+        'reach_methods': [],
         'n_rand': 100,
     },
 
     'lsnc_relu': {
-        # NNV can't handle this (MATLAB opset issue); n2v uses approx/exact with
-        # probabilistic fallback for models with unsupported ONNX ops
+        # approx/exact now run SOUNDLY (the IBP matmul-shape guard is merged, so
+        # these no longer crash). Drop the probabilistic fallback: it was the only
+        # remaining UNSOUND path (a coverage-set 'unsat'). Sound holds/unsat from
+        # approx/exact + sat from falsification.
         'reach_methods': [
             ('approx', {}),
             ('exact', {}),
-            ('probabilistic', {'m': 8000, 'epsilon': 0.001, 'surrogate': 'clipping_block'}),
         ],
         'n_rand': 100,
     },
@@ -185,15 +203,16 @@ BENCHMARK_CONFIGS = {
     },
 
     'traffic_signs_recognition_2023': {
-        # Binarized NN with Sign activations — now supported by dispatcher.
-        # Try approx first (Sign over-approximation), fall back to probabilistic.
-        # PGD still useless (Sign has zero gradients almost everywhere).
+        # Binarized NN with Sign activations. Sat-only (0 holds in gold), so drop
+        # the probabilistic fallback (it can only emit an UNSOUND 'unsat'); keep
+        # approx (sound; may time out -> unknown). Use the gradient-free 'strong'
+        # ensemble (Square) for the CEs: PGD/APGD are useless on Sign (zero
+        # gradients), Square is the right tool (validated 1->2/10).
         'reach_methods': [
             ('approx', {}),
-            ('probabilistic', {'m': 8000, 'epsilon': 0.001, 'surrogate': 'naive'}),
         ],
         'n_rand': 10000,
-        'falsify_method': 'random',  # PGD useless for Sign activations (zero gradients)
+        'falsify_method': 'strong',
     },
 
     'vggnet16_2022': {

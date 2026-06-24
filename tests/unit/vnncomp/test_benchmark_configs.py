@@ -6,6 +6,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'examples', 'VNN-COMP'))
 from benchmark_configs import get_config, BENCHMARK_CONFIGS, DEFAULT_CONFIG
+from n2v.utils.falsify import METHODS as VALID_FALSIFY_METHODS  # canonical falsifier list
 
 
 class TestGetConfig:
@@ -129,10 +130,15 @@ class TestGetConfig:
             assert 'reach_methods' in cfg, f"{category} missing reach_methods"
             assert 'n_rand' in cfg, f"{category} missing n_rand"
             assert 'falsify_method' in cfg, f"{category} missing falsify_method"
-            assert cfg['falsify_method'] in ('random', 'pgd', 'random+pgd'), \
+            # Validate against the canonical falsifier list so the test can't
+            # drift when new sound methods (e.g. 'square'/'strong') are wired.
+            assert cfg['falsify_method'] in VALID_FALSIFY_METHODS, \
                 f"{category} has invalid falsify_method: {cfg['falsify_method']}"
             assert isinstance(cfg['reach_methods'], list)
-            assert len(cfg['reach_methods']) > 0
+            # An EMPTY reach_methods is valid: it concedes the category to
+            # falsification + unknown (e.g. collins_aerospace, a sat-only cat
+            # whose only sound reach option was dropped). The runner's Stage-2
+            # loop simply skips an empty list -> unknown.
             for method, kwargs in cfg['reach_methods']:
                 assert method in ('exact', 'approx', 'probabilistic'), \
                     f"{category} has invalid method: {method}"
