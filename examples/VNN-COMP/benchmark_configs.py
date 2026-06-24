@@ -249,6 +249,11 @@ BENCHMARK_CONFIGS = {
     },
 
     'relusplitter': {
+        # Falsify with random+apgd (was the random+pgd default). Validated gold-aware
+        # (2026-06-23): random+apgd cracks gold-sat CEs (mnist_fc, oval21-cifar) that
+        # random+pgd misses (+2 on the K=8 sample, ORT-confirmed, no regression).
+        'falsify_method': 'random+apgd',
+        'falsify_kwargs': {'n_restarts': 1, 'n_steps': 30},
         'reach_methods': [
             ('approx', {'relax_factor': 1.0, 'relax_method': 'area'}),
         ],
