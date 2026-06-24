@@ -19,7 +19,11 @@ VNNLIB_FILE=$4
 
 echo "Preparing n2v for category '$CATEGORY' (onnx '$ONNX_FILE', vnnlib '$VNNLIB_FILE')"
 
-# Kill any zombie workers left over from a prior instance.
-killall -q python3 || true
+# Kill any zombie n2v workers left over from a prior instance. SCOPED to n2v's
+# own runner (pkill -f) rather than a global `killall python3`: on a shared
+# machine the latter would also kill co-tenant python processes (e.g. a
+# concurrent verification/CI run). On the dedicated competition machine the
+# n2v runner is the only python, so this is equally effective there.
+pkill -f vnncomp_runner.py || true
 
 exit 0
