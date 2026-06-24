@@ -116,6 +116,13 @@ class TestGetConfig:
         assert cfg['falsify_method'] == 'random+apgd'
         assert cfg['falsify_kwargs'] == {'n_restarts': 1, 'n_steps': 30}
 
+    def test_ml4acopf_uses_apgd(self):
+        """ml4acopf falsifies with random+apgd (bounded): apgd cracks a gold-sat CE
+        random/pgd miss, removing a probabilistic-reach -150 landmine."""
+        cfg = get_config('ml4acopf_2024')
+        assert cfg['falsify_method'] == 'random+apgd'
+        assert cfg['falsify_kwargs'] == {'n_restarts': 3, 'n_steps': 50}
+
     def test_probabilistic_configs_have_kwargs(self):
         """All probabilistic methods must specify m, epsilon, and surrogate."""
         PROBABILISTIC_BENCHMARKS = [
